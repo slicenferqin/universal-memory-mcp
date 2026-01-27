@@ -1,7 +1,7 @@
 {
-  "name": "@universal-memory/core",
-  "version": "0.0.1",
-  "description": "Core memory management library",
+  "name": "universal-memory-core",
+  "version": "0.1.2",
+  "description": "Core memory management library for Universal Memory MCP",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,5 +25,26 @@
     "@types/node": "^20.11.0",
     "typescript": "^5.3.0",
     "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "memory",
+    "ai",
+    "mcp",
+    "context"
+  ],
+  "author": "slicenferqin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slicenferqin/universal-memory-mcp.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/slicenferqin/universal-memory-mcp#readme",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

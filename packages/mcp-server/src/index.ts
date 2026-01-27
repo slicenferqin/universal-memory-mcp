@@ -16,7 +16,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { createMemoryManager, type MemoryConfig } from '@universal-memory/core';
+import { createMemoryManager, type MemoryConfig } from 'universal-memory-core';
 
 // Create memory manager
 const memoryManager = createMemoryManager();

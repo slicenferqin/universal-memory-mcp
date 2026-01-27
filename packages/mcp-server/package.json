@@ -1,7 +1,7 @@
 {
   "name": "universal-memory-mcp",
-  "version": "0.0.1",
-  "description": "MCP Server for universal AI memory system",
+  "version": "0.1.2",
+  "description": "MCP Server for persistent AI memory across sessions",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,9 +22,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.30.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@universal-memory/core": "workspace:*"
+    "universal-memory-core": "^0.1.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -36,8 +35,17 @@
     "memory",
     "ai",
     "claude",
-    "context"
+    "context",
+    "model-context-protocol"
   ],
+  "author": "slicenferqin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slicenferqin/universal-memory-mcp.git",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://github.com/slicenferqin/universal-memory-mcp#readme",
   "files": [
     "dist",
     "README.md"
