@@ -10,8 +10,7 @@
 
 - **长期记忆**：记住所有对话，跨会话、跨项目
 - **智能检索**：语义搜索 + 关键词搜索，秒级找到相关历史
-- **完全自动**：无需 AI 主动调用，透明化记录
-- **即插即用**：支持 Claude Code、OpenCode、Gemini CLI 等
+- **即插即用**：支持 Claude Code、OpenCode、Gemini CLI 等所有 MCP 兼容工具
 
 ## 核心理念
 
@@ -30,14 +29,13 @@
 ┌─────────────────────────────────────────────────────────┐
 │  User ←→ AI CLI (Claude Code / OpenCode / Gemini)       │
 └─────────────────┬───────────────────────────────────────┘
-                  │
+                  │ MCP Protocol
                   ↓
 ┌─────────────────────────────────────────────────────────┐
 │  Universal Memory MCP Server                            │
-│  ├── 自动拦截所有对话                                    │
-│  ├── 写入 daily/*.md（每日流水）                        │
-│  ├── 建立向量索引                                       │
-│  └── 提供搜索工具                                       │
+│  ├── memory_search: 搜索历史记忆                        │
+│  ├── memory_record: 记录对话                            │
+│  └── memory_update_long_term: 存储重要信息              │
 └─────────────────┬───────────────────────────────────────┘
                   │
                   ↓
@@ -56,13 +54,18 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 与其他方案的对比
+## 重要说明：MCP 的工作方式
 
-| 方案 | 记忆范围 | 自动化 | 检索能力 | 通用性 |
-|-----|---------|--------|---------|--------|
-| **Universal Memory** | 用户级（所有对话） | ✅ 完全自动 | ✅ 混合搜索 | ✅ 支持所有 CLI |
-| Clawdbot | 多渠道（WhatsApp/Telegram） | ✅ 完全自动 | ✅ 混合搜索 | ❌ 独立应用 |
-| 原生上下文 | 单会话 | ✅ 自动 | ❌ 无检索 | ✅ 内置 |
+MCP 协议是一个**工具提供协议**，不是中间件。这意味着：
+
+- **AI 需要主动调用工具**：记忆的记录和检索依赖 AI 主动调用 `memory_record` 和 `memory_search`
+- **通过工具描述引导**：我们通过详细的工具描述告诉 AI 何时应该调用这些工具
+- **不能自动拦截对话**：MCP Server 无法像中间件一样自动捕获所有对话
+
+这是 MCP 协议的设计限制，但好处是：
+- **通用性**：任何支持 MCP 的 CLI 都能使用
+- **透明性**：用户可以看到 AI 何时在使用记忆
+- **可控性**：AI 可以选择性地记录重要对话
 
 ## 快速开始
 
@@ -73,6 +76,21 @@ npm install -g universal-memory-mcp
 ```
 
 ### 配置 Claude Code
+
+编辑 `~/.config/claude/settings.json`：
+
+```json
+{
+  "mcpServers": {
+    "universal-memory": {
+      "command": "npx",
+      "args": ["-y", "universal-memory-mcp"]
+    }
+  }
+}
+```
+
+### 配置 Claude Desktop
 
 编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
@@ -87,70 +105,80 @@ npm install -g universal-memory-mcp
 }
 ```
 
-### 使用
+### 使用示例
 
 ```bash
 # 第一次对话
 $ claude "帮我设计一个用户认证系统"
 AI: [设计方案...]
-# ✅ 自动记录到 ~/.ai_memory/daily/2026-01-27.md
+AI: [调用 memory_record 记录这次对话]
 
 # 第二天
 $ claude "昨天我们讨论的认证系统，JWT 部分能详细说说吗？"
-AI: [自动搜索记忆] 根据昨天的讨论，我们选择了 JWT + Refresh Token...
+AI: [调用 memory_search 搜索相关记忆]
+AI: 根据昨天的讨论，我们选择了 JWT + Refresh Token...
 
 # 一周后
 $ claude "我之前所有关于认证的讨论都有哪些？"
-AI: [搜索所有相关记忆] 我找到了 3 次相关讨论：
+AI: [调用 memory_search("认证")]
+AI: 我找到了 3 次相关讨论：
    1. 2026-01-27: JWT vs Session 的选择
    2. 2026-01-29: Refresh Token 的实现
    3. 2026-01-30: 安全性考虑
-
-# 跨项目
-$ cd ~/other-project
-$ claude "我在之前的项目里用的是什么认证方案？"
-AI: [搜索跨项目记忆] 在你的其他项目中...
 ```
 
 ## MCP 工具
 
-### search_memory
+### memory_search
 
-搜索历史对话记忆。
+搜索历史对话和长期记忆。
 
 ```typescript
-search_memory({
+memory_search({
   query: "API 设计方案",
-  options: {
-    time_range: ["2026-01-01", "2026-01-31"],  // 可选
-    project: "my-project",                      // 可选
-    limit: 10                                   // 可选，默认 10
-  }
+  time_range: ["2026-01-01", "2026-01-31"],  // 可选
+  project: "my-project",                      // 可选
+  limit: 10                                   // 可选，默认 10
 })
 ```
 
-### get_session_context
+**何时使用：**
+- 用户问起过去的讨论
+- 用户说"我们之前讨论过..."
+- 需要了解用户偏好（搜索 "preferences"）
+- 需要之前的决策信息
 
-获取会话上下文（最近对话 + 长期记忆）。
+### memory_record
+
+记录当前对话。
 
 ```typescript
-get_session_context({
-  include_recent_days: 2,     // 最近几天的对话
-  include_long_term: true,    // 是否包含长期记忆
-  project: "my-project"       // 可选，项目名称
+memory_record({
+  user_message: "帮我设计 REST API",
+  ai_response: "推荐使用资源导向的 URL 设计...",
+  project: "my-project"  // 可选
 })
 ```
 
-### update_long_term_memory
+**何时使用：**
+- 每次有意义的对话交换后
+- 确保跨会话的连续性
 
-更新长期记忆（AI 主动调用，用于重要信息）。
+### memory_update_long_term
+
+存储重要信息到长期记忆。
 
 ```typescript
-update_long_term_memory({
-  category: "decisions",  // decisions | preferences | contacts
-  content: "选择了 PostgreSQL 作为主数据库，因为..."
+memory_update_long_term({
+  category: "preferences",  // preferences | decisions | facts | contacts
+  content: "用户偏好使用 TypeScript"
 })
 ```
+
+**何时使用：**
+- 发现用户偏好
+- 做出重要决策
+- 获知关键信息
 
 ## 记忆结构
 
@@ -165,17 +193,6 @@ update_long_term_memory({
 **User:** 帮我设计一个用户认证系统
 
 **AI:** 好的，我来帮你设计...
-
----
-
-## 2026-01-27 11:45:22
-
-**Project:** universal-memory-mcp
-**Session:** abc123
-
-**User:** JWT 的过期时间设置多少合适？
-
-**AI:** 根据安全性和用户体验的平衡...
 
 ---
 ```
@@ -195,12 +212,6 @@ update_long_term_memory({
 
 - 2026-01-27: 选择 JWT + Refresh Token 认证方案
 - 2026-01-28: 数据库使用 PostgreSQL
-- 2026-01-29: 前端框架选择 React
-
-## Key Contacts
-
-- Alice (alice@example.com) - 设计负责人
-- Bob (bob@example.com) - 后端工程师
 ```
 
 ## 技术架构
@@ -209,8 +220,7 @@ update_long_term_memory({
 
 - **Memory Manager**: 记忆管理（记录、存储、检索）
 - **MCP Server**: MCP 协议实现（工具暴露）
-- **Index Database**: 向量索引（sqlite-vec）
-- **Search Engine**: 混合搜索（语义 + 关键词）
+- **Search Engine**: 搜索引擎（关键词 + 语义）
 
 ### 技术选型
 
@@ -228,8 +238,6 @@ update_long_term_memory({
 - [架构设计](./ARCHITECTURE.md)
 - [集成指南](./docs/integration/)
   - [Claude Code](./docs/integration/claude-code.md)
-  - [OpenCode](./docs/integration/opencode.md)
-  - [Gemini CLI](./docs/integration/gemini-cli.md)
 
 ## 开发
 
@@ -241,21 +249,10 @@ update_long_term_memory({
 ### 本地开发
 
 ```bash
-# 克隆仓库
 git clone git@github.com:slicenferqin/universal-memory-mcp.git
 cd universal-memory-mcp
-
-# 安装依赖
 pnpm install
-
-# 构建
 pnpm build
-
-# 运行测试
-pnpm test
-
-# 本地开发
-pnpm dev
 ```
 
 ### 项目结构
@@ -264,16 +261,14 @@ pnpm dev
 universal-memory-mcp/
 ├── packages/
 │   ├── core/           # 核心逻辑
-│   ├── mcp-server/     # MCP Server 实现
-│   └── cli/            # 独立 CLI 工具
+│   └── mcp-server/     # MCP Server 实现
 ├── docs/               # 文档
-├── examples/           # 示例
 └── tests/              # 测试
 ```
 
 ## 路线图
 
-- [x] v0.1.0: 基础记忆系统（自动记录 + 简单搜索）
+- [x] v0.1.0: 基础记忆系统（记录 + 搜索）
 - [ ] v0.2.0: 向量索引（语义搜索）
 - [ ] v0.3.0: 混合搜索（语义 + 关键词）
 - [ ] v0.4.0: 长期记忆自动整理
@@ -291,9 +286,7 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 本项目受以下工作启发：
 - [Clawdbot](https://github.com/clawdbot/clawdbot) - 记忆系统设计理念
-- [Cursor](https://cursor.com/) - 动态上下文发现
-- [Manus](https://manus.im/) - 可恢复压缩
-- [InfiAgent](https://github.com/polyuiislab/infiAgent) - 十步策略
+- [Model Context Protocol](https://modelcontextprotocol.io/) - MCP 协议
 
 ---
 
