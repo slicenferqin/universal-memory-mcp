@@ -3,11 +3,10 @@
 /**
  * Universal Memory MCP Server
  *
- * 提供以下 MCP 工具：
- * - search_memory: 搜索历史对话记忆
- * - get_session_context: 获取会话上下文
- * - update_long_term_memory: 更新长期记忆
- * - record_conversation: 记录对话（通常自动调用）
+ * Provides MCP tools for persistent memory across AI sessions:
+ * - memory_search: Search conversation history and long-term memories
+ * - memory_record: Record conversations
+ * - memory_update_long_term: Update long-term memory
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -19,14 +18,14 @@ import {
 
 import { createMemoryManager, type MemoryConfig } from '@universal-memory/core';
 
-// 创建记忆管理器
+// Create memory manager
 const memoryManager = createMemoryManager();
 
-// 创建 MCP Server
+// Create MCP Server
 const server = new Server(
   {
     name: 'universal-memory-mcp',
-    version: '0.0.1',
+    version: '0.1.0',
   },
   {
     capabilities: {
@@ -35,118 +34,128 @@ const server = new Server(
   }
 );
 
-// 定义工具列表
+// Define tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: 'search_memory',
-        description:
-          '搜索历史对话记忆。用于回忆之前讨论过的内容、做过的决策、用户的偏好等。',
+        name: 'memory_search',
+        description: `Search through conversation history and long-term memories.
+
+WHEN TO USE:
+- When user asks about past discussions, decisions, or preferences
+- When user references something "we talked about before"
+- When you need context from previous sessions
+- When user asks "what did we decide about X" or "remember when we..."
+- When you need to know user preferences (search "preferences" or specific topic)
+
+This searches across all recorded conversations and long-term memories.
+Use specific keywords for better results (e.g., "TypeScript preferences", "database decision").`,
         inputSchema: {
           type: 'object',
           properties: {
             query: {
               type: 'string',
-              description: '搜索关键词或问题',
+              description: 'Search keywords or question',
             },
             time_range: {
               type: 'array',
               items: { type: 'string' },
-              description: '时间范围 [开始日期, 结束日期]，格式：YYYY-MM-DD',
+              description: 'Time range [start_date, end_date], format: YYYY-MM-DD',
             },
             project: {
               type: 'string',
-              description: '项目名称过滤',
+              description: 'Filter by project name',
             },
             limit: {
               type: 'number',
-              description: '返回结果数量限制，默认 10',
+              description: 'Max results to return, default 10',
             },
           },
           required: ['query'],
         },
       },
       {
-        name: 'get_session_context',
-        description:
-          '获取会话上下文，包括最近的对话、长期记忆和项目状态。建议在每个会话开始时调用。',
+        name: 'memory_record',
+        description: `Record the current conversation exchange for future reference.
+
+WHEN TO USE:
+- After EVERY meaningful conversation exchange
+- When the conversation contains information worth remembering
+- To ensure continuity across sessions
+
+What to record:
+- user_message: The user's question or request
+- ai_response: Summary of your response (key points, not full text)
+
+This builds memory over time, allowing recall of past discussions in future sessions.`,
         inputSchema: {
           type: 'object',
           properties: {
-            include_recent_days: {
-              type: 'number',
-              description: '包含最近几天的对话，默认 2',
+            user_message: {
+              type: 'string',
+              description: 'The user message/question',
             },
-            include_long_term: {
-              type: 'boolean',
-              description: '是否包含长期记忆，默认 true',
+            ai_response: {
+              type: 'string',
+              description: 'Summary of your response (key points)',
             },
             project: {
               type: 'string',
-              description: '项目名称',
+              description: 'Project name if in a project context',
+            },
+            session_id: {
+              type: 'string',
+              description: 'Session ID for grouping related conversations',
             },
           },
+          required: ['user_message', 'ai_response'],
         },
       },
       {
-        name: 'update_long_term_memory',
-        description:
-          '更新长期记忆。当发现重要的用户偏好、做出关键决策、或需要记住重要信息时调用。',
+        name: 'memory_update_long_term',
+        description: `Store important information in long-term memory for easy retrieval.
+
+WHEN TO USE - Call this when you identify:
+- User preferences (coding style, tools, communication preferences)
+- Important decisions (architecture choices, technology selections)
+- Key facts about user or their projects
+- Contact information or team details
+
+Categories:
+- preferences: User's personal preferences and working style
+- decisions: Important technical or project decisions
+- facts: Key information about user, projects, or context
+- contacts: People, teams, or organizations mentioned
+
+Long-term memories are searchable via memory_search.`,
         inputSchema: {
           type: 'object',
           properties: {
             category: {
               type: 'string',
               enum: ['decisions', 'preferences', 'contacts', 'facts'],
-              description: '记忆分类',
+              description: 'Memory category',
             },
             content: {
               type: 'string',
-              description: '要记录的内容',
+              description: 'Content to remember',
             },
           },
           required: ['category', 'content'],
-        },
-      },
-      {
-        name: 'record_conversation',
-        description:
-          '记录一段对话。通常由系统自动调用，但也可以手动调用来补充记录。',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            user_message: {
-              type: 'string',
-              description: '用户消息',
-            },
-            ai_response: {
-              type: 'string',
-              description: 'AI 响应',
-            },
-            project: {
-              type: 'string',
-              description: '项目名称',
-            },
-            session_id: {
-              type: 'string',
-              description: '会话 ID',
-            },
-          },
-          required: ['user_message', 'ai_response'],
         },
       },
     ],
   };
 });
 
-// 处理工具调用
+// Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
     switch (name) {
-      case 'search_memory': {
+      case 'memory_search': {
         const { query, time_range, project, limit } = args as {
           query: string;
           time_range?: string[];
@@ -167,7 +176,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: 'text',
-                text: `没有找到与 "${query}" 相关的记忆。`,
+                text: `No memories found matching "${query}".`,
               },
             ],
           };
@@ -177,7 +186,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           .map((r, i) => {
             const date = r.timestamp.toISOString().split('T')[0];
             const projectInfo = r.project ? ` [${r.project}]` : '';
-            return `### 结果 ${i + 1}${projectInfo} (${date}, 相关度: ${(r.score * 100).toFixed(0)}%)\n\n${r.content}`;
+            return `### Result ${i + 1}${projectInfo} (${date}, relevance: ${(r.score * 100).toFixed(0)}%)\n\n${r.content}`;
           })
           .join('\n\n---\n\n');
 
@@ -185,76 +194,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: `找到 ${results.length} 条相关记忆：\n\n${formatted}`,
+              text: `Found ${results.length} relevant memories:\n\n${formatted}`,
             },
           ],
         };
       }
 
-      case 'get_session_context': {
-        const { include_recent_days, include_long_term, project } = args as {
-          include_recent_days?: number;
-          include_long_term?: boolean;
-          project?: string;
-        };
-
-        const context = await memoryManager.getSessionContext({
-          includeRecentDays: include_recent_days,
-          includeLongTerm: include_long_term,
-          project,
-        });
-
-        let response = '# 会话上下文\n\n';
-
-        if (context.longTermMemory) {
-          response += '## 长期记忆\n\n' + context.longTermMemory + '\n\n';
-        }
-
-        if (context.projectState) {
-          response += '## 项目状态\n\n' + context.projectState + '\n\n';
-        }
-
-        if (context.recentConversations.length > 0) {
-          response += `## 最近对话 (${context.recentConversations.length} 条)\n\n`;
-          for (const conv of context.recentConversations.slice(-5)) {
-            const date = conv.context.timestamp.toISOString().split('T')[0];
-            response += `### ${date}\n\n`;
-            response += `**User:** ${conv.userMessage.slice(0, 200)}...\n\n`;
-            response += `**AI:** ${conv.aiResponse.slice(0, 200)}...\n\n`;
-          }
-        } else {
-          response += '## 最近对话\n\n_暂无最近对话记录_\n\n';
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: response,
-            },
-          ],
-        };
-      }
-
-      case 'update_long_term_memory': {
-        const { category, content } = args as {
-          category: 'decisions' | 'preferences' | 'contacts' | 'facts';
-          content: string;
-        };
-
-        await memoryManager.updateLongTermMemory(category, content);
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `已将以下内容添加到长期记忆 [${category}]:\n\n${content}`,
-            },
-          ],
-        };
-      }
-
-      case 'record_conversation': {
+      case 'memory_record': {
         const { user_message, ai_response, project, session_id } = args as {
           user_message: string;
           ai_response: string;
@@ -275,14 +221,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: `对话已记录 (ID: ${conversation.id})`,
+              text: `Conversation recorded (ID: ${conversation.id})`,
+            },
+          ],
+        };
+      }
+
+      case 'memory_update_long_term': {
+        const { category, content } = args as {
+          category: 'decisions' | 'preferences' | 'contacts' | 'facts';
+          content: string;
+        };
+
+        await memoryManager.updateLongTermMemory(category, content);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Stored in long-term memory [${category}]:\n\n${content}`,
             },
           ],
         };
       }
 
       default:
-        throw new Error(`未知工具: ${name}`);
+        throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -290,7 +254,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: 'text',
-          text: `错误: ${message}`,
+          text: `Error: ${message}`,
         },
       ],
       isError: true,
@@ -298,9 +262,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// 启动服务器
+// Start server
 async function main() {
-  // 初始化记忆系统
+  // Initialize memory system
   await memoryManager.initialize();
 
   console.error('Universal Memory MCP Server starting...');

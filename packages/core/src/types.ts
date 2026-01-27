@@ -161,19 +161,19 @@ export interface EmbeddingProvider {
 }
 
 /**
- * 存储后端接口
+ * Storage backend interface
  */
 export interface StorageBackend {
-  /** 读取文件 */
+  /** Read file */
   read(path: string): Promise<string>;
-  /** 写入文件 */
+  /** Write file */
   write(path: string, content: string): Promise<void>;
-  /** 追加内容 */
+  /** Append content */
   append(path: string, content: string): Promise<void>;
-  /** 列出文件 */
-  list(pattern: string): Promise<string[]>;
-  /** 删除文件 */
+  /** List files in directory */
+  list(dirPath: string, extension?: string): Promise<string[]>;
+  /** Delete file */
   delete(path: string): Promise<void>;
-  /** 检查文件是否存在 */
+  /** Check if file exists */
   exists(path: string): Promise<boolean>;
 }

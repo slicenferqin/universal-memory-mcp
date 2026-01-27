@@ -3,8 +3,7 @@
  */
 
 import { mkdir, readFile, writeFile, appendFile, readdir, unlink, stat } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { glob } from 'node:fs/promises';
+import { dirname, join, basename } from 'node:path';
 import type { StorageBackend } from './types.js';
 
 /**
@@ -50,18 +49,21 @@ export class LocalFileStorage implements StorageBackend {
   }
 
   /**
-   * 列出文件
+   * List files matching a simple pattern (supports *.ext in a directory)
    */
-  async list(pattern: string): Promise<string[]> {
+  async list(dirPath: string, extension?: string): Promise<string[]> {
     try {
-      // Node.js 20+ 支持 glob
-      const files: string[] = [];
-      for await (const file of glob(pattern)) {
-        files.push(file);
+      const entries = await readdir(dirPath, { withFileTypes: true });
+      let files = entries
+        .filter((e) => e.isFile())
+        .map((e) => join(dirPath, e.name));
+
+      if (extension) {
+        files = files.filter((f) => f.endsWith(extension));
       }
+
       return files.sort();
     } catch {
-      // Fallback: 简单目录遍历
       return [];
     }
   }

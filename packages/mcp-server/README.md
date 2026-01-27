@@ -1,6 +1,6 @@
 # Universal Memory MCP Server
 
-MCP Server implementation for universal AI memory system.
+MCP Server for persistent AI memory across sessions. Works with any MCP-compatible AI CLI.
 
 ## Installation
 
@@ -40,65 +40,94 @@ Edit `~/.config/claude/settings.json`:
 }
 ```
 
-## Available Tools
+## Tools
 
-### search_memory
+### memory_search
 
-Search through conversation history.
+Search through conversation history and long-term memories.
 
 ```json
 {
-  "query": "API design",
+  "query": "database decision",
   "time_range": ["2026-01-01", "2026-01-31"],
   "project": "my-project",
   "limit": 10
 }
 ```
 
-### get_session_context
+**When to use:**
+- User asks about past discussions
+- User references "we talked about before"
+- Need to know user preferences (search "preferences")
+- Need context from previous sessions
 
-Get session context including recent conversations and long-term memory.
+### memory_record
+
+Record conversation for future reference.
 
 ```json
 {
-  "include_recent_days": 2,
-  "include_long_term": true,
+  "user_message": "Help me design a REST API",
+  "ai_response": "Recommended RESTful patterns with resource-based URLs...",
   "project": "my-project"
 }
 ```
 
-### update_long_term_memory
+**When to use:**
+- After every meaningful conversation exchange
+- To ensure continuity across sessions
 
-Update long-term memory with important information.
+### memory_update_long_term
+
+Store important information for easy retrieval.
 
 ```json
 {
-  "category": "decisions",
-  "content": "Chose PostgreSQL for the database because..."
+  "category": "preferences",
+  "content": "User prefers TypeScript over JavaScript"
 }
 ```
 
-### record_conversation
+**Categories:**
+- `preferences` - User's working style and preferences
+- `decisions` - Important technical decisions
+- `facts` - Key information about user/projects
+- `contacts` - People and teams
 
-Record a conversation (usually called automatically).
+## How It Works
 
-```json
-{
-  "user_message": "Help me design...",
-  "ai_response": "Sure, here's my suggestion...",
-  "project": "my-project"
-}
+```
+User asks about past discussion
+        │
+        ▼
+AI calls memory_search("topic")
+        │
+        ▼
+Returns relevant memories
+        │
+        ▼
+AI responds with context
+        │
+        ▼
+AI calls memory_record() to save this exchange
+```
+
+## Storage
+
+All data stored locally in `~/.ai_memory/`:
+
+```
+~/.ai_memory/
+├── daily/           # Daily conversation logs (YYYY-MM-DD.md)
+├── long_term/       # Important memories (MEMORY.md, preferences.md, etc.)
+├── projects/        # Project-specific state
+└── config.json      # Configuration
 ```
 
 ## Development
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build
 pnpm build
-
-# Run locally
 node dist/index.js
 ```
