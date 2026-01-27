@@ -1,0 +1,45 @@
+{
+  "name": "universal-memory-mcp",
+  "version": "0.0.1",
+  "description": "MCP Server for universal AI memory system",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "universal-memory-mcp": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@universal-memory/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  },
+  "keywords": [
+    "mcp",
+    "memory",
+    "ai",
+    "claude",
+    "context"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

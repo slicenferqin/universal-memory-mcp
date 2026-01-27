@@ -1,0 +1,43 @@
+{
+  "name": "universal-memory-mcp",
+  "version": "0.0.1",
+  "description": "Universal memory system for AI CLI tools via MCP protocol",
+  "keywords": [
+    "mcp",
+    "memory",
+    "ai",
+    "claude",
+    "context",
+    "long-term-memory"
+  ],
+  "author": "slicenferqin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slicenferqin/universal-memory-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slicenferqin/universal-memory-mcp/issues"
+  },
+  "homepage": "https://github.com/slicenferqin/universal-memory-mcp#readme",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "test": "pnpm -r test",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.3.0"
+  }
+}
