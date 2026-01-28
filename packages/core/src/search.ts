@@ -32,7 +32,7 @@ export class SearchEngine {
 
     // 获取所有每日日志文件
     const dailyDir = join(this.config.storagePath, 'daily');
-    const files = await this.storage.list(join(dailyDir, '*.md'));
+    const files = await this.storage.list(dailyDir, '.md');
 
     // 过滤时间范围
     const filteredFiles = this.filterByTimeRange(files, timeRange);
@@ -45,6 +45,10 @@ export class SearchEngine {
       const matches = this.searchInContent(content, query, file, project);
       results.push(...matches);
     }
+
+    // 同时搜索长期记忆
+    const longTermResults = await this.searchLongTermMemories(query);
+    results.push(...longTermResults);
 
     // 排序并限制返回数量
     return results
@@ -174,6 +178,50 @@ export class SearchEngine {
    */
   private escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * 搜索长期记忆文件
+   */
+  private async searchLongTermMemories(query: string): Promise<SearchResult[]> {
+    const results: SearchResult[] = [];
+    const longTermDir = join(this.config.storagePath, 'long_term');
+    const files = await this.storage.list(longTermDir, '.md');
+
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(/\s+/).filter(Boolean);
+
+    for (const file of files) {
+      const content = await this.storage.read(file);
+      if (!content) continue;
+
+      const contentLower = content.toLowerCase();
+      let score = 0;
+
+      // 计算匹配分数
+      for (const term of queryTerms) {
+        if (contentLower.includes(term)) {
+          score += 1;
+          const wordRegex = new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'gi');
+          const matches = contentLower.match(wordRegex);
+          if (matches) {
+            score += matches.length * 0.5;
+          }
+        }
+      }
+
+      if (score > 0) {
+        const normalizedScore = Math.min(score / queryTerms.length, 1);
+        results.push({
+          content: content.trim(),
+          score: normalizedScore,
+          timestamp: new Date(),
+          sourcePath: file,
+        });
+      }
+    }
+
+    return results;
   }
 }
 

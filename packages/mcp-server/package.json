@@ -1,6 +1,6 @@
 {
   "name": "universal-memory-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP Server for persistent AI memory across sessions",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "universal-memory-core": "^0.1.2"
+    "universal-memory-core": "^0.1.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
