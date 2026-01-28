@@ -27,109 +27,132 @@ const MCP_CONFIG = {
 const SKILL_CONTENT = `---
 name: memory-assistant
 description: |
-  Automatic conversation memory management using universal-memory MCP.
+  CRITICAL: You MUST use memory tools for EVERY conversation.
 
-  ALWAYS activate this skill to:
-  1. SEARCH memories when user mentions: "之前", "上次", "我们讨论过", "remember", "we talked about", "what did we decide"
-  2. RECORD conversations at the END of EVERY meaningful response
-  3. STORE long-term info when discovering: user preferences, important decisions, key facts
+  MANDATORY actions:
+  1. SEARCH memories when user mentions past discussions ("之前", "上次", "remember", "we talked about")
+  2. RECORD EVERY response (except greetings like "hi"/"thanks") - NO EXCEPTIONS
+  3. STORE preferences/decisions/facts immediately when discovered
 
-  This skill ensures AI maintains persistent memory across all sessions.
+  This is NOT optional. Memory recording is REQUIRED for all conversations.
 ---
 
-# Memory Assistant
+# Memory Assistant - MANDATORY RULES
 
-You have access to persistent memory through the universal-memory MCP tools. Use them proactively.
+## RULE 1: Record EVERY Response (NO EXCEPTIONS)
 
-## Core Rules
+**CRITICAL**: At the END of your response, you MUST call \`memory_record\`.
 
-### 1. Always Search Before Answering (When Relevant)
+**Only skip if**:
+- User message is ONLY: "hi", "hello", "thanks", "ok", "好的", "谢谢"
+- Your response is ONLY: acknowledgment with no information
 
-When user references past conversations or asks about previous decisions:
+**Everything else MUST be recorded**:
+- ✅ Questions and answers
+- ✅ Code discussions
+- ✅ Bug fixes
+- ✅ Feature requests
+- ✅ Explanations
+- ✅ Debugging sessions
+- ✅ ANY conversation with information
 
-\`\`\`
-Call memory_search with relevant keywords
-\`\`\`
+### How to Record
 
-Trigger phrases:
-- "之前", "上次", "我们讨论过", "记得吗"
-- "remember", "we talked about", "what did we decide", "last time"
-- Any reference to past discussions or decisions
-
-### 2. Always Record After Responding
-
-At the END of EVERY meaningful conversation exchange, call:
-
-\`\`\`
+\`\`\`javascript
 memory_record({
-  user_message: "<summarize user's question/request>",
-  ai_response: "<key points of your response>",
-  project: "<current project name if applicable>"
+  user_message: "<brief summary of user's question>",
+  ai_response: "<key points of your response in 1-2 sentences>",
+  project: "<project name if in project directory>"
 })
 \`\`\`
 
-What counts as "meaningful":
-- Technical discussions or decisions
-- Problem-solving conversations
-- User preferences expressed
-- Any information worth remembering
+**Example**:
+\`\`\`javascript
+// User: "为什么 memory_search 不工作？"
+// AI: [explains bugs and fixes...]
 
-What to skip:
-- Simple greetings ("hi", "thanks")
-- Trivial clarifications
-
-### 3. Store Important Long-term Information
-
-When you identify important information, immediately call:
-
+memory_record({
+  user_message: "询问为什么 memory_search 无法找到已存储的记忆",
+  ai_response: "诊断并修复了两个 bug：storage.list() 调用错误和未搜索 long_term/ 目录。发布了 v0.2.1 修复版本",
+  project: "universal-memory-mcp"
+})
 \`\`\`
+
+## RULE 2: Search When User References Past
+
+When user says:
+- "之前", "上次", "我们讨论过", "记得吗"
+- "remember", "we talked about", "what did we decide", "last time"
+
+**MUST call** \`memory_search\` BEFORE answering:
+
+\`\`\`javascript
+memory_search({
+  query: "<relevant keywords>",
+  limit: 5
+})
+\`\`\`
+
+## RULE 3: Store Important Information Immediately
+
+When you discover:
+- **Preferences**: User's coding style, tool choices, communication style
+- **Decisions**: Architecture, technology, design choices
+- **Facts**: Project info, team structure, key details
+- **Contacts**: People, teams, organizations
+
+**MUST call** \`memory_update_long_term\` immediately:
+
+\`\`\`javascript
 memory_update_long_term({
   category: "preferences" | "decisions" | "facts" | "contacts",
   content: "<the information>"
 })
 \`\`\`
 
-Categories:
-- **preferences**: User's coding style, tool preferences, communication style
-- **decisions**: Architecture choices, technology selections, design decisions
-- **facts**: Key information about user, projects, team structure
-- **contacts**: People, teams, organizations mentioned
+## Workflow for EVERY Response
+
+\`\`\`
+1. [If user references past] → Call memory_search
+2. [Generate your response]
+3. [If discovered preference/decision/fact] → Call memory_update_long_term
+4. [ALWAYS] → Call memory_record (unless simple greeting)
+\`\`\`
 
 ## Examples
 
-### Example 1: User References Past Discussion
+### Example 1: Bug Fix Discussion
 
-**User**: "我们之前讨论的认证方案是什么来着？"
+**User**: "为什么 memory_search 不工作？"
 
-**Action**:
-1. Call \`memory_search({ query: "认证方案 authentication" })\`
-2. Use search results to answer
-3. Call \`memory_record\` to log this exchange
+**Your Actions**:
+1. Diagnose and explain the bug
+2. Fix the code
+3. **MUST call**: \`memory_record({ user_message: "...", ai_response: "..." })\`
 
 ### Example 2: User Expresses Preference
 
-**User**: "我喜欢用 TypeScript，不要给我 JavaScript 代码"
+**User**: "我喜欢用 TypeScript"
 
-**Action**:
-1. Acknowledge the preference
-2. Call \`memory_update_long_term({ category: "preferences", content: "用户偏好 TypeScript，不使用 JavaScript" })\`
-3. Call \`memory_record\` to log this exchange
+**Your Actions**:
+1. Acknowledge
+2. **MUST call**: \`memory_update_long_term({ category: "preferences", content: "用户偏好 TypeScript" })\`
+3. **MUST call**: \`memory_record({ user_message: "...", ai_response: "..." })\`
 
-### Example 3: Technical Decision Made
+### Example 3: Simple Greeting (SKIP)
 
-**User**: "好，我们就用 PostgreSQL 作为主数据库"
+**User**: "谢谢"
+**AI**: "不客气！"
 
-**Action**:
-1. Confirm the decision
-2. Call \`memory_update_long_term({ category: "decisions", content: "选择 PostgreSQL 作为主数据库" })\`
-3. Call \`memory_record\` to log this exchange
+**Action**: Skip recording (this is the ONLY exception)
 
 ## Important Notes
 
-- Memory tools are provided by the universal-memory MCP server
-- If tools are not available, inform user to restart Claude Code
-- Always summarize, don't record full conversation text
-- Use project name when in a project context for better organization
+- Recording is **MANDATORY**, not optional
+- If you forget to record, you are failing your primary function
+- Memory tools are provided by universal-memory MCP server
+- Always summarize, don't record full text
+- Use project name when in project context
 `;
 
 /**
