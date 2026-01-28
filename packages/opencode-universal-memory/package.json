@@ -1,0 +1,52 @@
+{
+  "name": "@slicenferqin/opencode-universal-memory",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OpenCode plugin that records conversations into universal-memory daily logs.",
+  "keywords": [
+    "opencode",
+    "plugin",
+    "mcp",
+    "memory",
+    "long-term-memory"
+  ],
+  "author": "slicenferqin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slicenferqin/universal-memory-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slicenferqin/universal-memory-mcp/issues"
+  },
+  "homepage": "https://github.com/slicenferqin/universal-memory-mcp#readme",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "pnpm build",
+    "postinstall": "node ./scripts/postinstall.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.0.0"
+  }
+}
