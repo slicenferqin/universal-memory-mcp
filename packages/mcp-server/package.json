@@ -1,6 +1,6 @@
 {
   "name": "universal-memory-mcp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "MCP Server for persistent AI memory across sessions",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,8 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "start": "node dist/index.js",
-    "test": "vitest"
+    "test": "vitest",
+    "postinstall": "node scripts/postinstall.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -48,6 +49,7 @@
   "homepage": "https://github.com/slicenferqin/universal-memory-mcp#readme",
   "files": [
     "dist",
+    "scripts",
     "README.md"
   ]
 }
