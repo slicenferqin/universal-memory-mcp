@@ -16,12 +16,12 @@
 
 ### 上下文 ≠ 记忆
 
-| 特性 | 上下文（Context） | 记忆（Memory） |
-|-----|------------------|---------------|
-| **生命周期** | 单次会话 | 永久持久化 |
-| **容量** | 受限于窗口（128K-200K tokens） | 无限制 |
-| **成本** | 每次传输都计费 | 只在检索时计费 |
-| **可操作性** | 只能读取 | 可读、可写、可搜索 |
+| 特性         | 上下文（Context）              | 记忆（Memory）     |
+| ------------ | ------------------------------ | ------------------ |
+| **生命周期** | 单次会话                       | 永久持久化         |
+| **容量**     | 受限于窗口（128K-200K tokens） | 无限制             |
+| **成本**     | 每次传输都计费                 | 只在检索时计费     |
+| **可操作性** | 只能读取                       | 可读、可写、可搜索 |
 
 ### 工作原理
 
@@ -63,6 +63,7 @@ MCP 协议是一个**工具提供协议**，不是中间件。这意味着：
 - **不能自动拦截对话**：MCP Server 无法像中间件一样自动捕获所有对话
 
 这是 MCP 协议的设计限制，但好处是：
+
 - **通用性**：任何支持 MCP 的 CLI 都能使用
 - **透明性**：用户可以看到 AI 何时在使用记忆
 - **可控性**：AI 可以选择性地记录重要对话
@@ -75,9 +76,25 @@ MCP 协议是一个**工具提供协议**，不是中间件。这意味着：
 npm install -g universal-memory-mcp
 ```
 
-### 配置 Claude Code
+### 配置 OpenCode (自动采集)
 
-编辑 `~/.config/claude/settings.json`：
+编辑 `~/.config/opencode/opencode.json`：
+
+```json
+{
+  "plugin": ["@slicenferqin/opencode-universal-memory"]
+}
+```
+
+**特性**：
+
+- ✅ 自动采集会话内容（无需手动调用）
+- ✅ 基于 `session.idle` 事件触发
+- ✅ 自动检测项目名称和会话 ID
+
+### 配置 Claude Code (手动记录)
+
+编辑 `~/.claude.json`：
 
 ```json
 {
@@ -89,6 +106,10 @@ npm install -g universal-memory-mcp
   }
 }
 ```
+
+**注意**：⚠️ Claude Code 需要手动调用 `memory_record` 工具保存对话，目前**不支持自动采集**。此功能为 [Feature TODO](https://github.com/slicenferqin/universal-memory-mcp/issues)。
+
+**替代方案**：使用 [Claude Code Hook](https://code.claude.com/docs/en/hooks) 设置 Stop hook 提醒保存，或等待 Claude Code Plugin 支持后实现自动采集。
 
 ### 配置 Claude Desktop
 
@@ -135,14 +156,15 @@ AI: 我找到了 3 次相关讨论：
 
 ```typescript
 memory_search({
-  query: "API 设计方案",
-  time_range: ["2026-01-01", "2026-01-31"],  // 可选
-  project: "my-project",                      // 可选
-  limit: 10                                   // 可选，默认 10
+  query: 'API 设计方案',
+  time_range: ['2026-01-01', '2026-01-31'], // 可选
+  project: 'my-project', // 可选
+  limit: 10, // 可选，默认 10
 })
 ```
 
 **何时使用：**
+
 - 用户问起过去的讨论
 - 用户说"我们之前讨论过..."
 - 需要了解用户偏好（搜索 "preferences"）
@@ -154,13 +176,14 @@ memory_search({
 
 ```typescript
 memory_record({
-  user_message: "帮我设计 REST API",
-  ai_response: "推荐使用资源导向的 URL 设计...",
-  project: "my-project"  // 可选
+  user_message: '帮我设计 REST API',
+  ai_response: '推荐使用资源导向的 URL 设计...',
+  project: 'my-project', // 可选
 })
 ```
 
 **何时使用：**
+
 - 每次有意义的对话交换后
 - 确保跨会话的连续性
 
@@ -170,19 +193,20 @@ memory_record({
 
 ```typescript
 memory_update_long_term({
-  category: "preferences",  // preferences | decisions | facts | contacts
-  content: "用户偏好使用 TypeScript"
+  category: 'preferences', // preferences | decisions | facts | contacts
+  content: '用户偏好使用 TypeScript',
 })
 ```
 
 **何时使用：**
+
 - 发现用户偏好
 - 做出重要决策
 - 获知关键信息
 
 ## 记忆结构
 
-### 每日流水 (daily/*.md)
+### 每日流水 (daily/\*.md)
 
 ```markdown
 ## 2026-01-27 10:30:15
@@ -224,12 +248,12 @@ memory_update_long_term({
 
 ### 技术选型
 
-| 组件 | 技术选择 | 原因 |
-|-----|---------|------|
-| 索引数据库 | sqlite-vec | 单文件、无依赖、支持向量搜索 |
-| 全文搜索 | SQLite FTS5 | 内置、高效 BM25 |
-| Embedding | 可配置 | 支持 OpenAI / Local / Gemini |
-| 存储 | 文件系统 | 透明、可迁移、用户可控 |
+| 组件       | 技术选择    | 原因                         |
+| ---------- | ----------- | ---------------------------- |
+| 索引数据库 | sqlite-vec  | 单文件、无依赖、支持向量搜索 |
+| 全文搜索   | SQLite FTS5 | 内置、高效 BM25              |
+| Embedding  | 可配置      | 支持 OpenAI / Local / Gemini |
+| 存储       | 文件系统    | 透明、可迁移、用户可控       |
 
 ## 文档
 
@@ -238,6 +262,7 @@ memory_update_long_term({
 - [架构设计](./ARCHITECTURE.md)
 - [集成指南](./docs/integration/)
   - [Claude Code](./docs/integration/claude-code.md)
+  - [OpenCode](./docs/integration/opencode.md)
 
 ## 开发
 
@@ -269,7 +294,7 @@ universal-memory-mcp/
 ## 路线图
 
 - [x] v0.1.0: 基础记忆系统（记录 + 搜索）
-- [ ] v0.2.0: 向量索引（语义搜索）
+- [ ] v0.2.0: 向量索引（语义搜索） - **[OpenCode Plugin 发布版本]**
 - [ ] v0.3.0: 混合搜索（语义 + 关键词）
 - [ ] v0.4.0: 长期记忆自动整理
 - [ ] v1.0.0: 稳定版本
@@ -285,12 +310,14 @@ MIT License - 详见 [LICENSE](./LICENSE)
 ## 致谢
 
 本项目受以下工作启发：
+
 - [Clawdbot](https://github.com/clawdbot/clawdbot) - 记忆系统设计理念
 - [Model Context Protocol](https://modelcontextprotocol.io/) - MCP 协议
 
 ---
 
 **核心公式**：
+
 ```
 AI 效果 = AI 能力 × 上下文质量 × 记忆深度
 ```
