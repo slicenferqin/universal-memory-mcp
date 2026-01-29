@@ -10,6 +10,8 @@ export interface ConversationContext {
   timestamp: Date;
   /** 项目名称（可选） */
   project?: string;
+  /** 来源客户端（可选），如 claude-code / opencode / trae */
+  client?: string;
   /** 会话 ID */
   sessionId: string;
   /** 工作目录 */
@@ -38,6 +40,8 @@ export interface SearchOptions {
   timeRange?: [Date, Date];
   /** 项目过滤 */
   project?: string;
+  /** 客户端过滤 */
+  client?: string;
   /** 返回数量限制 */
   limit?: number;
   /** 最低相关性分数 */
@@ -79,7 +83,7 @@ export interface SessionContext {
 /**
  * 记忆分类
  */
-export type MemoryCategory = 'decisions' | 'preferences' | 'contacts' | 'facts';
+export type MemoryCategory = 'decisions' | 'preferences' | 'contacts' | 'facts' | 'profile';
 
 /**
  * 长期记忆条目

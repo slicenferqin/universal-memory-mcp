@@ -26,33 +26,47 @@
 ### 工作原理
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  User ←→ AI CLI (Claude Code / OpenCode / Gemini)       │
-└─────────────────┬───────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  User ←→ AI CLI (Claude Code / OpenCode / Gemini)           │
+└─────────────────┬───────────────────────────────────────────┘
                   │ MCP Protocol
                   ↓
-┌─────────────────────────────────────────────────────────┐
-│  Universal Memory MCP Server                            │
-│  ├── memory_search: 搜索历史记忆                        │
-│  ├── memory_record: 记录对话                            │
-│  └── memory_update_long_term: 存储重要信息              │
-└─────────────────┬───────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Universal Memory MCP Server                                │
+│  ├── memory_search: 搜索历史记忆                            │
+│  ├── memory_record: 记录对话                                │
+│  └── memory_update_long_term: 存储重要信息                  │
+└─────────────────┬───────────────────────────────────────────┘
                   │
                   ↓
-┌─────────────────────────────────────────────────────────┐
-│  ~/.ai_memory/                                          │
-│  ├── daily/              # 每日对话流水                  │
-│  │   ├── 2026-01-27.md                                  │
-│  │   └── ...                                            │
-│  ├── long_term/          # 长期记忆                      │
-│  │   ├── MEMORY.md       # 主记忆文件                    │
-│  │   ├── decisions.md    # 重要决策                      │
-│  │   └── preferences.md  # 用户偏好                      │
-│  ├── projects/           # 项目级记忆                    │
-│  │   └── <project-name>/                                │
-│  └── index.db            # 向量索引（SQLite）            │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  ~/.ai_memory/                                              │
+│  ├── daily/                    # Level 0: 感觉记忆          │
+│  │   ├── 2026-01-27.md         # 原始对话流水               │
+│  │   └── ...                                                │
+│  ├── long_term/                # Level 1-2: 长期记忆        │
+│  │   ├── profile.md            # L1: 用户画像条目           │
+│  │   ├── decisions.md          # L1: 重要决策               │
+│  │   ├── facts.md              # L1: 关键事实               │
+│  │   ├── profile-summary.md    # L2: 整合的用户画像         │
+│  │   └── knowledge-summary.md  # L2: 整合的知识库           │
+│  ├── projects/                 # 项目级记忆                 │
+│  │   └── <project-name>/                                    │
+│  └── index.db                  # 向量索引（SQLite）         │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+### 三层记忆架构（基于脑科学）
+
+我们借鉴人类大脑的记忆整合机制，设计了三层记忆架构：
+
+| 层级 | 类比 | 存储 | 特点 |
+|------|------|------|------|
+| **Level 0** | 感觉记忆 | `daily/*.md` | 原始对话流水，完整但冗余 |
+| **Level 1** | 短期记忆 | `long_term/*.md` | 提取的条目，带时间戳可追溯 |
+| **Level 2** | 长期记忆 | `*-summary.md` | 整合的摘要，结构化可直接使用 |
+
+详细设计文档：[记忆整合系统设计](./docs/memory-consolidation-design.md)
 
 ## 重要说明：MCP 的工作方式
 
@@ -165,6 +179,34 @@ AI: 我找到了 3 次相关讨论：
    3. 2026-01-30: 安全性考虑
 ```
 
+## 记忆整合
+
+### 自动整理长期记忆
+
+```bash
+# 标准整理（Level 0 → Level 1）
+universal-memory-consolidate --days 7
+
+# 完整整理（Level 0 → Level 1 → Level 2）
+universal-memory-consolidate --days 7 --consolidate-summary
+
+# 仅二次整合（Level 1 → Level 2）
+universal-memory-consolidate --consolidate-summary-only
+
+# 预览模式
+universal-memory-consolidate --dry-run --verbose
+```
+
+### 整合流程
+
+```
+Level 0 (daily/*.md)
+    ↓ 每日提取（使用 Claude CLI）
+Level 1 (profile.md, facts.md, decisions.md)
+    ↓ 定期整合（使用 Claude CLI）
+Level 2 (profile-summary.md, knowledge-summary.md)
+```
+
 ## MCP 工具
 
 ### memory_search
@@ -210,7 +252,7 @@ memory_record({
 
 ```typescript
 memory_update_long_term({
-  category: 'preferences', // preferences | decisions | facts | contacts
+  category: 'preferences', // preferences | decisions | facts | contacts | profile
   content: '用户偏好使用 TypeScript',
 })
 ```
@@ -223,7 +265,7 @@ memory_update_long_term({
 
 ## 记忆结构
 
-### 每日流水 (daily/\*.md)
+### 每日流水 (daily/\*.md) - Level 0
 
 ```markdown
 ## 2026-01-27 10:30:15
@@ -239,21 +281,30 @@ memory_update_long_term({
 ---
 ```
 
-### 长期记忆 (long_term/MEMORY.md)
+### 长期记忆 (long_term/) - Level 1 & 2
 
+**Level 1 - 原始条目** (`profile.md`, `facts.md`, `decisions.md`):
 ```markdown
-# Long-term Memory
+# User Profile
 
-## User Preferences
+- [2026-01-29 10:40:49] 职业角色：全栈开发者
+- [2026-01-29 10:49:50] 技术栈：TypeScript、Node.js
+- [2026-01-29 11:01:10] 工作习惯：先规划后实施
+```
 
-- 偏好使用 TypeScript
-- 喜欢简洁的解释
-- 代码风格：2 空格缩进
+**Level 2 - 整合摘要** (`profile-summary.md`):
+```markdown
+# User Profile Summary
 
-## Important Decisions
+> Last consolidated: 2026-01-29
 
-- 2026-01-27: 选择 JWT + Refresh Token 认证方案
-- 2026-01-28: 数据库使用 PostgreSQL
+## 基本信息
+- **职业角色**: 全栈开发者/技术架构师
+- **主要领域**: AI 工具开发、MCP 服务器
+
+## 技术栈
+- **语言**: TypeScript, Node.js
+- **工具**: pnpm, Claude Code, MCP 框架
 ```
 
 ## 技术架构
@@ -263,6 +314,7 @@ memory_update_long_term({
 - **Memory Manager**: 记忆管理（记录、存储、检索）
 - **MCP Server**: MCP 协议实现（工具暴露）
 - **Search Engine**: 搜索引擎（关键词 + 语义）
+- **Consolidator**: 记忆整合（提取 + 二次整合）
 
 ### 技术选型
 
@@ -277,6 +329,7 @@ memory_update_long_term({
 
 - [快速开始](./docs/getting-started.md)
 - [工作原理](./docs/how-it-works.md)
+- [记忆整合系统设计](./docs/memory-consolidation-design.md) ✨
 - [架构设计](./ARCHITECTURE.md)
 - [集成指南](./docs/integration/)
   - [Claude Code](./docs/integration/claude-code.md)
@@ -315,9 +368,9 @@ universal-memory-mcp/
 - [x] v0.2.0: OpenCode Plugin 自动采集
 - [x] v0.3.0: Claude Code 自动记录（Stop hook + Skill）
 - [x] v0.3.1: Client 字段支持（区分不同客户端）
+- [x] v0.3.2: 三层记忆架构（基于脑科学的记忆整合）
 - [ ] v0.4.0: 向量索引（语义搜索）
 - [ ] v0.5.0: 混合搜索（语义 + 关键词）
-- [ ] v0.6.0: 长期记忆自动整理
 - [ ] v1.0.0: 稳定版本
 
 ## 贡献
@@ -334,6 +387,7 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 - [Clawdbot](https://github.com/clawdbot/clawdbot) - 记忆系统设计理念
 - [Model Context Protocol](https://modelcontextprotocol.io/) - MCP 协议
+- 脑科学研究 - 记忆整合机制设计
 
 ---
 

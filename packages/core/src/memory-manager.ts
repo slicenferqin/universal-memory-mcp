@@ -292,6 +292,7 @@ export class MemoryManager {
       preferences: '## User Preferences',
       contacts: '## Key Contacts',
       facts: '## Key Facts',
+      profile: '## User Profile',
     };
 
     const header = categoryHeaders[category];

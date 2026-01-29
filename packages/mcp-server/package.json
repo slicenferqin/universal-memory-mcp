@@ -1,13 +1,15 @@
 {
   "name": "universal-memory-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "MCP Server for persistent AI memory across sessions",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "universal-memory-mcp": "./dist/index.js",
-    "universal-memory-record": "./dist/record.js"
+    "universal-memory-record": "./dist/record.js",
+    "universal-memory-consolidate": "./dist/consolidate.js",
+    "universal-memory-cron": "./dist/cron.js"
   },
   "exports": {
     ".": {
