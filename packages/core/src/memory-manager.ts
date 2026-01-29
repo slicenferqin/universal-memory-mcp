@@ -63,6 +63,7 @@ export class MemoryManager {
       timestamp: new Date(),
       sessionId: context.sessionId || randomUUID(),
       project: context.project,
+      client: context.client,
       workingDirectory: context.workingDirectory,
       ...context,
     };
@@ -103,6 +104,9 @@ export class MemoryManager {
 
     if (context.project) {
       entry += `**Project:** ${context.project}\n`;
+    }
+    if (context.client) {
+      entry += `**Client:** ${context.client}\n`;
     }
     entry += `**Session:** ${context.sessionId}\n\n`;
 
@@ -228,6 +232,10 @@ export class MemoryManager {
         continue;
       }
 
+      // 提取客户端
+      const clientMatch = block.match(/\*\*Client:\*\* (.+)/);
+      const client = clientMatch ? clientMatch[1].trim() : undefined;
+
       // 提取会话 ID
       const sessionMatch = block.match(/\*\*Session:\*\* (.+)/);
       const sessionId = sessionMatch ? sessionMatch[1].trim() : randomUUID();
@@ -245,6 +253,7 @@ export class MemoryManager {
             timestamp,
             sessionId,
             project,
+            client,
           },
         });
       }
