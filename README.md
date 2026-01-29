@@ -92,9 +92,24 @@ npm install -g universal-memory-mcp
 - ✅ 基于 `session.idle` 事件触发
 - ✅ 自动检测项目名称和会话 ID
 
-### 配置 Claude Code (手动记录)
+### 配置 Claude Code (自动记录) ✨
 
-编辑 `~/.claude.json`：
+**一键安装**（推荐）：
+
+```bash
+npm install -g universal-memory-mcp
+```
+
+安装后会自动配置：
+- ✅ MCP Server（`~/.claude/settings.json`）
+- ✅ Memory Assistant Skill（自动引导 AI 使用记忆）
+- ✅ Stop Hook（自动记录每次对话）
+
+**重启 Claude Code** 后即可使用。
+
+**手动配置**（如果自动安装失败）：
+
+编辑 `~/.claude/settings.json`：
 
 ```json
 {
@@ -107,9 +122,11 @@ npm install -g universal-memory-mcp
 }
 ```
 
-**注意**：⚠️ Claude Code 需要手动调用 `memory_record` 工具保存对话，目前**不支持自动采集**。此功能为 [Feature TODO](https://github.com/slicenferqin/universal-memory-mcp/issues)。
+**特性**：
 
-**替代方案**：使用 [Claude Code Hook](https://code.claude.com/docs/en/hooks) 设置 Stop hook 提醒保存，或等待 Claude Code Plugin 支持后实现自动采集。
+- ✅ 自动记录所有对话（通过 Stop hook）
+- ✅ 智能引导 AI 搜索历史（通过 memory-assistant skill）
+- ✅ 支持 client 字段区分不同客户端（v0.3.1+）
 
 ### 配置 Claude Desktop
 
@@ -212,6 +229,7 @@ memory_update_long_term({
 ## 2026-01-27 10:30:15
 
 **Project:** universal-memory-mcp
+**Client:** claude-code
 **Session:** abc123
 
 **User:** 帮我设计一个用户认证系统
@@ -294,9 +312,12 @@ universal-memory-mcp/
 ## 路线图
 
 - [x] v0.1.0: 基础记忆系统（记录 + 搜索）
-- [ ] v0.2.0: 向量索引（语义搜索） - **[OpenCode Plugin 发布版本]**
-- [ ] v0.3.0: 混合搜索（语义 + 关键词）
-- [ ] v0.4.0: 长期记忆自动整理
+- [x] v0.2.0: OpenCode Plugin 自动采集
+- [x] v0.3.0: Claude Code 自动记录（Stop hook + Skill）
+- [x] v0.3.1: Client 字段支持（区分不同客户端）
+- [ ] v0.4.0: 向量索引（语义搜索）
+- [ ] v0.5.0: 混合搜索（语义 + 关键词）
+- [ ] v0.6.0: 长期记忆自动整理
 - [ ] v1.0.0: 稳定版本
 
 ## 贡献
