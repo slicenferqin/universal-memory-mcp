@@ -9,6 +9,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import type { EmbeddingProvider } from '../types.js'
 import { VectorStore, type VectorDocument } from './store.js'
 import { chunkConversation, type Chunk } from '../embedding/chunker.js'
+import { chunkAllLongTermFiles, type MarkdownChunk } from '../embedding/markdown-chunker.js'
 
 export interface IndexingOptions {
   batchSize?: number
@@ -369,5 +370,135 @@ export class IndexingPipeline {
   private generateSourceFile(timestamp: Date, sessionId: string): string {
     const dateStr = timestamp.toISOString().split('T')[0]
     return `daily/${dateStr}.md`
+  }
+
+  /**
+   * Index L1/L2 long-term memory files
+   *
+   * Indexes long_term/*.md and summary files into the vector store
+   */
+  async indexLongTermFiles(options: IndexingOptions = {}): Promise<IndexingStats> {
+    const { verbose = false } = options
+
+    const stats: IndexingStats = {
+      totalFiles: 0,
+      totalConversations: 0,
+      totalChunks: 0,
+      indexedChunks: 0,
+      skippedChunks: 0,
+      errors: [],
+    }
+
+    try {
+      if (verbose) {
+        console.log('📚 Indexing long-term memory files...')
+      }
+
+      // Chunk all long-term files
+      const chunks = await chunkAllLongTermFiles(this.storagePath, {
+        maxChunkSize: 20,
+        overlap: 2,
+      })
+
+      stats.totalChunks = chunks.length
+
+      if (verbose) {
+        console.log(`   Found ${chunks.length} chunks from long-term files`)
+      }
+
+      // Process chunks in batches
+      const batchSize = options.batchSize || 20
+
+      for (let i = 0; i < chunks.length; i += batchSize) {
+        const batch = chunks.slice(i, i + batchSize)
+
+        try {
+          // Generate embeddings for all chunks in batch
+          const texts = batch.map((c) => c.content)
+          const embeddings = await this.embeddingProvider.generateBatch(texts)
+
+          // Create vector documents
+          const docs: VectorDocument[] = batch.map((chunk, idx) => ({
+            id: chunk.id,
+            conversationId: `l1-l2-${chunk.metadata.category}`,
+            chunkIndex: chunk.metadata.chunkIndex,
+            content: chunk.content,
+            embedding: embeddings[idx],
+            timestamp: chunk.metadata.timestamp.getTime(),
+            project: undefined, // L1/L2 memories are not project-specific
+            client: undefined,
+            sessionId: 'l1-l2-memory',
+            sourceFile: chunk.metadata.sourceFile,
+          }))
+
+          // Insert into vector store
+          this.vectorStore.insertBatch(docs)
+          stats.indexedChunks += docs.length
+
+          if (verbose) {
+            console.log(
+              `   ✅ Indexed batch ${Math.floor(i / batchSize) + 1} (${docs.length} chunks, category: ${batch[0].metadata.category})`
+            )
+          }
+        } catch (error) {
+          const msg = `Error indexing batch ${Math.floor(i / batchSize) + 1}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+          stats.errors.push(msg)
+          if (verbose) {
+            console.error(`   ❌ ${msg}`)
+          }
+        }
+      }
+
+      // Reset dirty flag after successful indexing
+      this.dirty = false
+
+      if (verbose) {
+        console.log('\n✅ Long-term memory indexing complete!')
+        console.log(`   Total chunks: ${stats.totalChunks}`)
+        console.log(`   Indexed: ${stats.indexedChunks}`)
+        console.log(`   Errors: ${stats.errors.length}`)
+      }
+
+      return stats
+    } catch (error) {
+      stats.errors.push(`Fatal error: ${error instanceof Error ? error.message : String(error)}`)
+      return stats
+    }
+  }
+
+  /**
+   * Index L1/L2 long-term memory files asynchronously
+   */
+  indexLongTermFilesAsync(options: IndexingOptions = {}): IndexingJob {
+    const job: IndexingJob = {
+      id: `index-l1-l2-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      status: 'pending',
+      startedAt: Date.now(),
+    }
+
+    this.currentJob = job
+
+    setImmediate(async () => {
+      try {
+        job.status = 'running'
+
+        const stats = await this.indexLongTermFiles({
+          ...options,
+          verbose: options.verbose ?? false,
+        })
+
+        job.status = 'completed'
+        job.completedAt = Date.now()
+        job.stats = stats
+      } catch (error) {
+        job.status = 'failed'
+        job.completedAt = Date.now()
+        job.error = error instanceof Error ? error.message : String(error)
+      }
+    })
+
+    return job
   }
 }

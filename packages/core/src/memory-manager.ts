@@ -383,6 +383,30 @@ export class MemoryManager {
   isFileWatcherEnabled(): boolean {
     return this.autoWatchEnabled && this.watcher !== null
   }
+
+  /**
+   * 索引 L1/L2 长期记忆文件
+   *
+   * 将 long_term/*.md 和 summary 文件向量化到向量存储
+   */
+  async indexLongTermMemory(options: { verbose?: boolean } = {}): Promise<any> {
+    if (!this.indexingEnabled || !this.pipeline) {
+      throw new Error('Indexing is not enabled. Call enableIndexing() first.')
+    }
+
+    return await this.pipeline.indexLongTermFiles(options)
+  }
+
+  /**
+   * 异步索引 L1/L2 长期记忆文件
+   */
+  indexLongTermMemoryAsync(options: { verbose?: boolean } = {}): any {
+    if (!this.indexingEnabled || !this.pipeline) {
+      throw new Error('Indexing is not enabled. Call enableIndexing() first.')
+    }
+
+    return this.pipeline.indexLongTermFilesAsync(options)
+  }
 }
 
 /**
