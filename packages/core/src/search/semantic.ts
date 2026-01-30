@@ -7,16 +7,22 @@
 import type { EmbeddingProvider } from '../types.js'
 import type { VectorStore } from '../vectorstore/index.js'
 import type { SearchOptions, SearchResult } from '../types.js'
+import type { MetadataManager } from '../metadata.js'
 
 export interface SemanticSearchOptions extends SearchOptions {
   embeddingProvider: EmbeddingProvider
   vectorStore: VectorStore
+  // Metadata manager for importance scores
+  metadataManager?: MetadataManager
   // Time decay options
   timeDecay?: boolean
   timeDecayHalfLife?: number // days
   // Relevance weighting
   projectRelevance?: boolean
   currentProject?: string
+  // Importance-based ranking
+  useImportanceScore?: boolean // Use importance score in ranking (default: false)
+  importanceWeight?: number // Weight for importance score (default: 0.3)
   // Candidate pool expansion for hybrid search
   candidateMultiplier?: number // Multiplier for candidate pool size (default: 4)
   maxCandidates?: number // Hard limit for candidate pool (default: 200)
@@ -75,10 +81,13 @@ export async function semanticSearch(
     project,
     client,
     timeRange,
+    metadataManager,
     timeDecay = true,
     timeDecayHalfLife = 30,
     projectRelevance = true,
     currentProject,
+    useImportanceScore = false,
+    importanceWeight = 0.3,
     candidateMultiplier = 4, // Default: expand 4x
     maxCandidates = 200, // Hard limit: 200 candidates
   } = options
@@ -93,6 +102,11 @@ export async function semanticSearch(
   if (timeRange) {
     if (timeRange[0]) filters.minTimestamp = timeRange[0].getTime()
     if (timeRange[1]) filters.maxTimestamp = timeRange[1].getTime()
+  }
+
+  // Pass includeArchive option to vector store
+  if (options.includeArchive !== undefined) {
+    filters.includeArchive = options.includeArchive
   }
 
   // Calculate candidate pool size with hard limit
@@ -115,6 +129,18 @@ export async function semanticSearch(
     if (projectRelevance && currentProject) {
       const relevanceFactor = calculateProjectRelevance(result.project, currentProject)
       adjustedScore *= relevanceFactor
+    }
+
+    // Apply importance score if available
+    if (useImportanceScore && metadataManager) {
+      const metadata = metadataManager.getMetadata(result.id)
+      if (metadata) {
+        // Blend importance score with adjusted score
+        // importanceWeight determines how much weight to give to importance (0-1)
+        // Formula: score * (1 - importanceWeight) + importanceScore * importanceWeight
+        const importanceFactor = metadata.importanceScore
+        adjustedScore = adjustedScore * (1 - importanceWeight) + importanceFactor * importanceWeight
+      }
     }
 
     return {

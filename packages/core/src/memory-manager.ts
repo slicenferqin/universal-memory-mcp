@@ -18,6 +18,7 @@ import { loadConfig, getDailyLogPath, formatTimestamp, formatDate } from './conf
 import { LocalFileStorage, initializeStorage } from './storage.js'
 import { SearchEngine, searchLongTermMemory } from './search.js'
 import { MemoryWatcher } from './watcher.js'
+import { MetadataManager } from './metadata.js'
 
 /**
  * 记忆管理器
@@ -32,6 +33,7 @@ export class MemoryManager {
   private config: MemoryConfig
   private storage: LocalFileStorage
   private searchEngine: SearchEngine
+  private metadataManager: MetadataManager
   private initialized: boolean = false
   private pipeline: any // Will be initialized when needed
   private indexingEnabled: boolean = false
@@ -42,6 +44,7 @@ export class MemoryManager {
     this.config = loadConfig(customConfig)
     this.storage = new LocalFileStorage()
     this.searchEngine = new SearchEngine(this.config)
+    this.metadataManager = new MetadataManager(this.config.storagePath)
   }
 
   /**
@@ -130,6 +133,8 @@ export class MemoryManager {
    *
    * 如果有未索引的变更（dirty flag），会在后台触发异步索引
    * 搜索立即返回，可能包含略旧的结果（但延迟很低）
+   *
+   * 同时记录访问统计到元数据管理器
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
     await this.initialize()
@@ -141,7 +146,34 @@ export class MemoryManager {
     }
 
     // Return search results immediately (may be slightly stale)
-    return this.searchEngine.search(query, options)
+    const results = await this.searchEngine.search(query, options)
+
+    // Record access for each result (async, don't await)
+    if (results && results.length > 0) {
+      for (const result of results) {
+        // Extract memory ID from sourcePath
+        // sourcePath could be a file path or a memory ID
+        const memoryId = result.sourcePath
+
+        // Record access in background
+        setImmediate(() => {
+          this.metadataManager.recordAccess(memoryId)
+
+          // Update importance score if using importance-based ranking
+          // Note: useImportanceScore is not part of SearchOptions interface yet
+          // This is a placeholder for future enhancement
+          const useImportanceScore = (options as any).useImportanceScore
+          if (useImportanceScore) {
+            this.metadataManager.updateImportanceScore(memoryId, {
+              contentLength: result.content.length,
+              hasStructure: result.content.includes('##') || result.content.includes('**'),
+            })
+          }
+        })
+      }
+    }
+
+    return results
   }
 
   /**

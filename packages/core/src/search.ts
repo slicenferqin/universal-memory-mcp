@@ -2,10 +2,10 @@
  * Search engine implementation
  */
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { SearchOptions, SearchResult, MemoryConfig } from './types.js';
-import { LocalFileStorage } from './storage.js';
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { SearchOptions, SearchResult, MemoryConfig } from './types.js'
+import { LocalFileStorage } from './storage.js'
 
 /**
  * 简单的关键词搜索引擎（MVP 版本）
@@ -16,67 +16,74 @@ import { LocalFileStorage } from './storage.js';
  * - 混合搜索
  */
 export class SearchEngine {
-  private storage: LocalFileStorage;
-  private config: MemoryConfig;
+  private storage: LocalFileStorage
+  private config: MemoryConfig
 
   constructor(config: MemoryConfig) {
-    this.config = config;
-    this.storage = new LocalFileStorage();
+    this.config = config
+    this.storage = new LocalFileStorage()
   }
 
   /**
    * 搜索记忆
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
-    const { timeRange, project, client, limit = this.config.defaultLimit } = options;
+    const {
+      timeRange,
+      project,
+      client,
+      limit = this.config.defaultLimit,
+      includeArchive = false,
+    } = options
 
     // 获取所有每日日志文件
-    const dailyDir = join(this.config.storagePath, 'daily');
-    const files = await this.storage.list(dailyDir, '.md');
+    const dailyDir = join(this.config.storagePath, 'daily')
+    const files = await this.storage.list(dailyDir, '.md')
 
     // 过滤时间范围
-    const filteredFiles = this.filterByTimeRange(files, timeRange);
+    const filteredFiles = this.filterByTimeRange(files, timeRange)
 
     // 搜索每个文件
-    const results: SearchResult[] = [];
+    const results: SearchResult[] = []
 
     for (const file of filteredFiles) {
-      const content = await this.storage.read(file);
-      const matches = this.searchInContent(content, query, file, project, client);
-      results.push(...matches);
+      const content = await this.storage.read(file)
+      const matches = this.searchInContent(content, query, file, project, client)
+      results.push(...matches)
     }
 
     // 同时搜索长期记忆
-    const longTermResults = await this.searchLongTermMemories(query);
-    results.push(...longTermResults);
+    const longTermResults = await this.searchLongTermMemories(query)
+    results.push(...longTermResults)
+
+    // 如果 includeArchive 为 true，搜索归档的记忆
+    if (includeArchive) {
+      const archiveResults = await this.searchArchivedMemories(query, { project, client })
+      results.push(...archiveResults)
+    }
 
     // 排序并限制返回数量
-    return results
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    return results.sort((a, b) => b.score - a.score).slice(0, limit)
   }
 
   /**
    * 根据时间范围过滤文件
    */
-  private filterByTimeRange(
-    files: string[],
-    timeRange?: [Date, Date]
-  ): string[] {
+  private filterByTimeRange(files: string[], timeRange?: [Date, Date]): string[] {
     if (!timeRange) {
-      return files;
+      return files
     }
 
-    const [start, end] = timeRange;
-    const startStr = this.formatDateStr(start);
-    const endStr = this.formatDateStr(end);
+    const [start, end] = timeRange
+    const startStr = this.formatDateStr(start)
+    const endStr = this.formatDateStr(end)
 
     return files.filter((file) => {
-      const match = file.match(/(\d{4}-\d{2}-\d{2})\.md$/);
-      if (!match) return false;
-      const dateStr = match[1];
-      return dateStr >= startStr && dateStr <= endStr;
-    });
+      const match = file.match(/(\d{4}-\d{2}-\d{2})\.md$/)
+      if (!match) return false
+      const dateStr = match[1]
+      return dateStr >= startStr && dateStr <= endStr
+    })
   }
 
   /**
@@ -89,46 +96,46 @@ export class SearchEngine {
     projectFilter?: string,
     clientFilter?: string
   ): SearchResult[] {
-    const results: SearchResult[] = [];
-    const queryLower = query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter(Boolean);
+    const results: SearchResult[] = []
+    const queryLower = query.toLowerCase()
+    const queryTerms = queryLower.split(/\s+/).filter(Boolean)
 
     // 按对话块分割
-    const blocks = content.split(/^---$/m);
+    const blocks = content.split(/^---$/m)
 
     for (const block of blocks) {
-      if (!block.trim()) continue;
+      if (!block.trim()) continue
 
       // 检查项目过滤
       if (projectFilter) {
-        const projectMatch = block.match(/\*\*Project:\*\* (.+)/);
+        const projectMatch = block.match(/\*\*Project:\*\* (.+)/)
         if (!projectMatch || projectMatch[1] !== projectFilter) {
-          continue;
+          continue
         }
       }
 
       // 检查客户端过滤
       if (clientFilter) {
-        const clientMatch = block.match(/\*\*Client:\*\* (.+)/);
+        const clientMatch = block.match(/\*\*Client:\*\* (.+)/)
         if (!clientMatch || clientMatch[1].trim() !== clientFilter) {
-          continue;
+          continue
         }
       }
 
       // 计算相关性分数
-      const blockLower = block.toLowerCase();
-      let score = 0;
+      const blockLower = block.toLowerCase()
+      let score = 0
 
       for (const term of queryTerms) {
         if (blockLower.includes(term)) {
           // 基础匹配分数
-          score += 1;
+          score += 1
 
           // 完整词匹配加分
-          const wordRegex = new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'gi');
-          const matches = blockLower.match(wordRegex);
+          const wordRegex = new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'gi')
+          const matches = blockLower.match(wordRegex)
           if (matches) {
-            score += matches.length * 0.5;
+            score += matches.length * 0.5
           }
         }
       }
@@ -136,17 +143,17 @@ export class SearchEngine {
       // 如果有匹配，添加到结果
       if (score > 0) {
         // 提取时间戳
-        const timestampMatch = block.match(/## (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+        const timestampMatch = block.match(/## (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/)
         const timestamp = timestampMatch
           ? new Date(timestampMatch[1])
-          : this.extractDateFromPath(filePath);
+          : this.extractDateFromPath(filePath)
 
         // 提取项目
-        const projectMatch = block.match(/\*\*Project:\*\* (.+)/);
-        const project = projectMatch ? projectMatch[1] : undefined;
+        const projectMatch = block.match(/\*\*Project:\*\* (.+)/)
+        const project = projectMatch ? projectMatch[1] : undefined
 
         // 归一化分数
-        const normalizedScore = Math.min(score / queryTerms.length, 1);
+        const normalizedScore = Math.min(score / queryTerms.length, 1)
 
         results.push({
           content: block.trim(),
@@ -154,83 +161,138 @@ export class SearchEngine {
           timestamp,
           project,
           sourcePath: filePath,
-        });
+        })
       }
     }
 
-    return results;
+    return results
   }
 
   /**
    * 从文件路径提取日期
    */
   private extractDateFromPath(filePath: string): Date {
-    const match = filePath.match(/(\d{4}-\d{2}-\d{2})\.md$/);
+    const match = filePath.match(/(\d{4}-\d{2}-\d{2})\.md$/)
     if (match) {
-      return new Date(match[1]);
+      return new Date(match[1])
     }
-    return new Date();
+    return new Date()
   }
 
   /**
    * 格式化日期字符串
    */
   private formatDateStr(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   /**
    * 转义正则表达式特殊字符
    */
   private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   }
 
   /**
    * 搜索长期记忆文件
    */
   private async searchLongTermMemories(query: string): Promise<SearchResult[]> {
-    const results: SearchResult[] = [];
-    const longTermDir = join(this.config.storagePath, 'long_term');
-    const files = await this.storage.list(longTermDir, '.md');
+    const results: SearchResult[] = []
+    const longTermDir = join(this.config.storagePath, 'long_term')
+    const files = await this.storage.list(longTermDir, '.md')
 
-    const queryLower = query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter(Boolean);
+    const queryLower = query.toLowerCase()
+    const queryTerms = queryLower.split(/\s+/).filter(Boolean)
 
     for (const file of files) {
-      const content = await this.storage.read(file);
-      if (!content) continue;
+      const content = await this.storage.read(file)
+      if (!content) continue
 
-      const contentLower = content.toLowerCase();
-      let score = 0;
+      const contentLower = content.toLowerCase()
+      let score = 0
 
       // 计算匹配分数
       for (const term of queryTerms) {
         if (contentLower.includes(term)) {
-          score += 1;
-          const wordRegex = new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'gi');
-          const matches = contentLower.match(wordRegex);
+          score += 1
+          const wordRegex = new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'gi')
+          const matches = contentLower.match(wordRegex)
           if (matches) {
-            score += matches.length * 0.5;
+            score += matches.length * 0.5
           }
         }
       }
 
       if (score > 0) {
-        const normalizedScore = Math.min(score / queryTerms.length, 1);
+        const normalizedScore = Math.min(score / queryTerms.length, 1)
         results.push({
           content: content.trim(),
           score: normalizedScore,
           timestamp: new Date(),
           sourcePath: file,
-        });
+        })
       }
     }
 
-    return results;
+    return results
+  }
+
+  /**
+   * 搜索归档的记忆文件
+   */
+  private async searchArchivedMemories(
+    query: string,
+    options: { project?: string; client?: string } = {}
+  ): Promise<SearchResult[]> {
+    const results: SearchResult[] = []
+    const archiveDir = join(this.config.storagePath, 'archive')
+
+    // 搜索归档的 daily 文件
+    const archiveDailyDir = join(archiveDir, 'daily')
+    const dailyFiles = await this.storage.list(archiveDailyDir, '.md')
+
+    // 搜索归档的 long_term 文件
+    const archiveLongTermDir = join(archiveDir, 'long_term')
+    const longTermFiles = await this.storage.list(archiveLongTermDir, '.md')
+
+    const allFiles = [...dailyFiles, ...longTermFiles]
+    const queryLower = query.toLowerCase()
+    const queryTerms = queryLower.split(/\s+/).filter(Boolean)
+
+    for (const file of allFiles) {
+      const content = await this.storage.read(file)
+      if (!content) continue
+
+      const contentLower = content.toLowerCase()
+      let score = 0
+
+      // 计算匹配分数
+      for (const term of queryTerms) {
+        if (contentLower.includes(term)) {
+          score += 1
+          const wordRegex = new RegExp(`\\b${this.escapeRegex(term)}\\b`, 'gi')
+          const matches = contentLower.match(wordRegex)
+          if (matches) {
+            score += matches.length * 0.5
+          }
+        }
+      }
+
+      if (score > 0) {
+        const normalizedScore = Math.min(score / queryTerms.length, 1)
+        results.push({
+          content: content.trim(),
+          score: normalizedScore,
+          timestamp: new Date(), // 归档文件时间戳可能不准确，使用当前时间
+          sourcePath: file,
+        })
+      }
+    }
+
+    return results
   }
 }
 
@@ -241,21 +303,21 @@ export async function searchLongTermMemory(
   config: MemoryConfig,
   query: string
 ): Promise<string | null> {
-  const storage = new LocalFileStorage();
-  const memoryPath = join(config.storagePath, 'long_term', 'MEMORY.md');
+  const storage = new LocalFileStorage()
+  const memoryPath = join(config.storagePath, 'long_term', 'MEMORY.md')
 
   try {
-    const content = await storage.read(memoryPath);
-    if (!content) return null;
+    const content = await storage.read(memoryPath)
+    if (!content) return null
 
     // 简单检查是否包含查询词
-    const queryLower = query.toLowerCase();
+    const queryLower = query.toLowerCase()
     if (content.toLowerCase().includes(queryLower)) {
-      return content;
+      return content
     }
 
-    return null;
+    return null
   } catch {
-    return null;
+    return null
   }
 }

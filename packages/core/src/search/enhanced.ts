@@ -39,6 +39,7 @@ export class EnhancedSearchEngine {
       timeRange,
       project,
       client,
+      includeArchive = false, // Default: exclude archived memories
     } = options
 
     // Use vector search if available and requested
@@ -55,6 +56,7 @@ export class EnhancedSearchEngine {
           timeDecayHalfLife: 30,
           projectRelevance: true,
           currentProject: project,
+          includeArchive, // Pass includeArchive to semantic search
         }
 
         if (mode === 'semantic') {

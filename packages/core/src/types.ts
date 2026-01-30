@@ -7,15 +7,15 @@
  */
 export interface ConversationContext {
   /** 时间戳 */
-  timestamp: Date;
+  timestamp: Date
   /** 项目名称（可选） */
-  project?: string;
+  project?: string
   /** 来源客户端（可选），如 claude-code / opencode / trae */
-  client?: string;
+  client?: string
   /** 会话 ID */
-  sessionId: string;
+  sessionId: string
   /** 工作目录 */
-  workingDirectory?: string;
+  workingDirectory?: string
 }
 
 /**
@@ -23,13 +23,13 @@ export interface ConversationContext {
  */
 export interface Conversation {
   /** 唯一 ID */
-  id: string;
+  id: string
   /** 用户消息 */
-  userMessage: string;
+  userMessage: string
   /** AI 响应 */
-  aiResponse: string;
+  aiResponse: string
   /** 上下文 */
-  context: ConversationContext;
+  context: ConversationContext
 }
 
 /**
@@ -37,17 +37,19 @@ export interface Conversation {
  */
 export interface SearchOptions {
   /** 时间范围 */
-  timeRange?: [Date, Date];
+  timeRange?: [Date, Date]
   /** 项目过滤 */
-  project?: string;
+  project?: string
   /** 客户端过滤 */
-  client?: string;
+  client?: string
   /** 返回数量限制 */
-  limit?: number;
+  limit?: number
   /** 最低相关性分数 */
-  minScore?: number;
+  minScore?: number
   /** 搜索模式 */
-  mode?: 'semantic' | 'keyword' | 'hybrid';
+  mode?: 'semantic' | 'keyword' | 'hybrid'
+  /** 是否包含归档记忆（默认：false） */
+  includeArchive?: boolean
 }
 
 /**
@@ -55,17 +57,17 @@ export interface SearchOptions {
  */
 export interface SearchResult {
   /** 内容 */
-  content: string;
+  content: string
   /** 相关性分数 */
-  score: number;
+  score: number
   /** 时间戳 */
-  timestamp: Date;
+  timestamp: Date
   /** 项目 */
-  project?: string;
+  project?: string
   /** 来源文件 */
-  sourcePath: string;
+  sourcePath: string
   /** 行号范围 */
-  lineRange?: [number, number];
+  lineRange?: [number, number]
 }
 
 /**
@@ -73,30 +75,30 @@ export interface SearchResult {
  */
 export interface SessionContext {
   /** 最近对话 */
-  recentConversations: Conversation[];
+  recentConversations: Conversation[]
   /** 长期记忆 */
-  longTermMemory?: string;
+  longTermMemory?: string
   /** 项目状态 */
-  projectState?: string;
+  projectState?: string
 }
 
 /**
  * 记忆分类
  */
-export type MemoryCategory = 'decisions' | 'preferences' | 'contacts' | 'facts' | 'profile';
+export type MemoryCategory = 'decisions' | 'preferences' | 'contacts' | 'facts' | 'profile'
 
 /**
  * 长期记忆条目
  */
 export interface LongTermMemoryEntry {
   /** 分类 */
-  category: MemoryCategory;
+  category: MemoryCategory
   /** 内容 */
-  content: string;
+  content: string
   /** 创建时间 */
-  createdAt: Date;
+  createdAt: Date
   /** 来源对话 ID */
-  sourceConversationId?: string;
+  sourceConversationId?: string
 }
 
 /**
@@ -104,18 +106,18 @@ export interface LongTermMemoryEntry {
  */
 export interface IndexItem {
   /** 内容 */
-  content: string;
+  content: string
   /** 向量 embedding */
-  embedding?: number[];
+  embedding?: number[]
   /** 元数据 */
   metadata: {
-    timestamp: Date;
-    project?: string;
-    sessionId: string;
-    filePath: string;
-    lineStart?: number;
-    lineEnd?: number;
-  };
+    timestamp: Date
+    project?: string
+    sessionId: string
+    filePath: string
+    lineStart?: number
+    lineEnd?: number
+  }
 }
 
 /**
@@ -123,31 +125,31 @@ export interface IndexItem {
  */
 export interface MemoryConfig {
   /** 存储路径 */
-  storagePath: string;
+  storagePath: string
   /** 每日日志保留天数 */
-  dailyRetentionDays: number;
+  dailyRetentionDays: number
   /** 自动清理 */
-  autoCleanup: boolean;
+  autoCleanup: boolean
   /** Embedding 提供者 */
-  embeddingProvider: 'openai' | 'local' | 'gemini' | 'none';
+  embeddingProvider: 'openai' | 'local' | 'gemini' | 'none'
   /** Embedding 模型 */
-  embeddingModel?: string;
+  embeddingModel?: string
   /** Embedding 维度 */
-  embeddingDimensions: number;
+  embeddingDimensions: number
   /** 语义搜索权重 */
-  semanticWeight: number;
+  semanticWeight: number
   /** 关键词搜索权重 */
-  keywordWeight: number;
+  keywordWeight: number
   /** 默认返回数量 */
-  defaultLimit: number;
+  defaultLimit: number
   /** 最低分数阈值 */
-  minScore: number;
+  minScore: number
   /** 是否启用整理 */
-  consolidationEnabled: boolean;
+  consolidationEnabled: boolean
   /** 整理计划 */
-  consolidationSchedule: 'daily' | 'weekly' | 'manual';
+  consolidationSchedule: 'daily' | 'weekly' | 'manual'
   /** 项目标记文件 */
-  projectMarkers: string[];
+  projectMarkers: string[]
 }
 
 /**
@@ -155,13 +157,13 @@ export interface MemoryConfig {
  */
 export interface EmbeddingProvider {
   /** 提供者名称 */
-  name: string;
+  name: string
   /** 向量维度 */
-  dimensions: number;
+  dimensions: number
   /** 生成单个文本的 embedding */
-  generate(text: string): Promise<number[]>;
+  generate(text: string): Promise<number[]>
   /** 批量生成 embedding */
-  generateBatch(texts: string[]): Promise<number[][]>;
+  generateBatch(texts: string[]): Promise<number[][]>
 }
 
 /**
@@ -169,15 +171,15 @@ export interface EmbeddingProvider {
  */
 export interface StorageBackend {
   /** Read file */
-  read(path: string): Promise<string>;
+  read(path: string): Promise<string>
   /** Write file */
-  write(path: string, content: string): Promise<void>;
+  write(path: string, content: string): Promise<void>
   /** Append content */
-  append(path: string, content: string): Promise<void>;
+  append(path: string, content: string): Promise<void>
   /** List files in directory */
-  list(dirPath: string, extension?: string): Promise<string[]>;
+  list(dirPath: string, extension?: string): Promise<string[]>
   /** Delete file */
-  delete(path: string): Promise<void>;
+  delete(path: string): Promise<void>
   /** Check if file exists */
-  exists(path: string): Promise<boolean>;
+  exists(path: string): Promise<boolean>
 }

@@ -155,6 +155,7 @@ export class VectorStore {
       client?: string
       minTimestamp?: number
       maxTimestamp?: number
+      includeArchive?: boolean
     }
   ): SearchResult[] {
     // Build WHERE clause for filters
@@ -176,6 +177,11 @@ export class VectorStore {
     if (filters?.maxTimestamp) {
       conditions.push('timestamp <= ?')
       params.push(filters.maxTimestamp)
+    }
+
+    // Filter out archived documents unless includeArchive is true
+    if (filters?.includeArchive !== true) {
+      conditions.push("source_file NOT LIKE 'archive/%'")
     }
 
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''

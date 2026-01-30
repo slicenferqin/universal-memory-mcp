@@ -10,6 +10,7 @@
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
+import { ArchiveManager } from '../archive.js'
 
 export interface SchedulerConfig {
   storagePath: string
@@ -260,8 +261,7 @@ export class LifecycleScheduler {
   /**
    * Run monthly task: Archive old memories
    *
-   * This is a placeholder - the actual implementation would move
-   * old files to archive/ directory
+   * Moves old files to archive/ directory for cold storage
    */
   private async runMonthlyTask(): Promise<void> {
     console.log('\n🔄 [Monthly Task] Running archival...')
@@ -273,15 +273,20 @@ export class LifecycleScheduler {
     }
 
     try {
-      // TODO: Call actual archival logic
-      // This would involve:
-      // 1. Move daily/ files older than 7 days to archive/daily/
-      // 2. Move long_term/ entries older than 30 days to archive/long_term/
-      // 3. Update vector store to remove archived chunks
+      const archiveManager = new ArchiveManager(this.config.storagePath)
 
-      console.log('   ✅ Monthly task completed (placeholder)')
+      const archiveStats = await archiveManager.archive({
+        archiveDailyAfter: this.config.archiveDailyAfter,
+        archiveLongTermAfter: this.config.archiveLongTermAfter,
+        verbose: true,
+      })
+
+      console.log(`   ✅ Monthly task completed`)
+      console.log(`      📦 Archived ${archiveStats.archivedDailyFiles} daily files`)
+      console.log(`      📦 Archived ${archiveStats.archivedLongTermEntries} long-term entries`)
 
       result.success = true
+      result.stats = archiveStats
       this.stats.lastMonthlyRun = new Date()
     } catch (error) {
       console.error(`   ❌ Monthly task failed: ${error}`)
