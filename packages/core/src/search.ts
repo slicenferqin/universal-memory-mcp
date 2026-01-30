@@ -28,7 +28,7 @@ export class SearchEngine {
    * 搜索记忆
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
-    const { timeRange, project, limit = this.config.defaultLimit } = options;
+    const { timeRange, project, client, limit = this.config.defaultLimit } = options;
 
     // 获取所有每日日志文件
     const dailyDir = join(this.config.storagePath, 'daily');
@@ -42,7 +42,7 @@ export class SearchEngine {
 
     for (const file of filteredFiles) {
       const content = await this.storage.read(file);
-      const matches = this.searchInContent(content, query, file, project);
+      const matches = this.searchInContent(content, query, file, project, client);
       results.push(...matches);
     }
 
@@ -86,7 +86,8 @@ export class SearchEngine {
     content: string,
     query: string,
     filePath: string,
-    projectFilter?: string
+    projectFilter?: string,
+    clientFilter?: string
   ): SearchResult[] {
     const results: SearchResult[] = [];
     const queryLower = query.toLowerCase();
@@ -102,6 +103,14 @@ export class SearchEngine {
       if (projectFilter) {
         const projectMatch = block.match(/\*\*Project:\*\* (.+)/);
         if (!projectMatch || projectMatch[1] !== projectFilter) {
+          continue;
+        }
+      }
+
+      // 检查客户端过滤
+      if (clientFilter) {
+        const clientMatch = block.match(/\*\*Client:\*\* (.+)/);
+        if (!clientMatch || clientMatch[1].trim() !== clientFilter) {
           continue;
         }
       }

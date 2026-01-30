@@ -36,13 +36,25 @@ claude
 
 ## Usage
 
-### Automatic Recording
+### Automatic Recording（推荐：Stop Hook）
 
-Every conversation is automatically recorded. Just use Claude Code normally:
+MCP 是“工具协议”，服务端无法像中间件一样自动拦截模型输入输出。要做到“每次回复后必定落盘”，推荐使用 CLI 的 stop hook（或类似的 post-response hook）在工具侧记录对话。
+
+本项目提供了一个可直接调用的记录器命令 `universal-memory-record`，适合在 hook 中使用。
+
+示例（JSON 从 stdin 传入）：
 
 ```bash
-$ claude "Help me refactor this function to use async/await"
+echo '{"user_message":"...","ai_response":"...","project":"my-app","session_id":"...","working_directory":"..."}' | universal-memory-record --json
 ```
+
+只要你的 stop hook 能拿到本轮的用户输入与模型输出，就可以把两段文本传给这个命令完成采集与落盘。
+
+如果你无法拿到完整输出，也可以先只记录“简短摘要 + 指针（日志路径/任务 id）”，后续再补全整理。
+
+### Manual / Model-driven Recording
+
+如果你不方便改动 CLI，也可以让模型在每次回复末尾调用 MCP 工具 `memory_record` 实现“由模型驱动的采集”。这种方式依赖模型遵循工具描述与提示词，可靠性通常不如 stop hook。
 
 The conversation is saved to `~/.ai_memory/daily/YYYY-MM-DD.md`.
 

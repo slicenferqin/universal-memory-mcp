@@ -25,6 +25,14 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "files": [
+    "packages/mcp-server/dist",
+    "packages/mcp-server/src",
+    "templates",
+    "scripts",
+    ".opencode",
+    ".claude"
+  ],
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "build": "pnpm -r build",
@@ -32,7 +40,8 @@
     "test": "pnpm -r test",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "clean": "pnpm -r clean && rm -rf node_modules"
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "postinstall": "node scripts/postinstall.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

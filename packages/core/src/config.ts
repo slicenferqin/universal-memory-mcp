@@ -32,8 +32,11 @@ export function loadConfig(customConfig?: Partial<MemoryConfig>): MemoryConfig {
   // TODO: 从文件加载配置
   // const configPath = join(DEFAULT_CONFIG.storagePath, 'config.json');
 
+  const envStoragePath = process.env.MEMORY_PATH || process.env.AI_MEMORY_PATH;
+
   return {
     ...DEFAULT_CONFIG,
+    ...(envStoragePath ? { storagePath: envStoragePath } : {}),
     ...customConfig,
   };
 }

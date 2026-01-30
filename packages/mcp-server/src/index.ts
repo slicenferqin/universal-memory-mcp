@@ -67,6 +67,10 @@ Use specific keywords for better results (e.g., "TypeScript preferences", "datab
               type: 'string',
               description: 'Filter by project name',
             },
+            client: {
+              type: 'string',
+              description: 'Filter by client name (e.g., claude-code, opencode, trae)',
+            },
             limit: {
               type: 'number',
               description: 'Max results to return, default 10',
@@ -103,6 +107,10 @@ This builds memory over time, allowing recall of past discussions in future sess
             project: {
               type: 'string',
               description: 'Project name if in a project context',
+            },
+            client: {
+              type: 'string',
+              description: 'Client name (e.g., claude-code, opencode, trae)',
             },
             session_id: {
               type: 'string',
@@ -156,10 +164,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'memory_search': {
-        const { query, time_range, project, limit } = args as {
+        const { query, time_range, project, client, limit } = args as {
           query: string;
           time_range?: string[];
           project?: string;
+          client?: string;
           limit?: number;
         };
 
@@ -168,8 +177,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ? [new Date(time_range[0]), new Date(time_range[1])]
             : undefined,
           project,
+          client,
           limit,
-        });
+        } as any);
 
         if (results.length === 0) {
           return {
@@ -201,10 +211,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'memory_record': {
-        const { user_message, ai_response, project, session_id } = args as {
+        const { user_message, ai_response, project, client, session_id } = args as {
           user_message: string;
           ai_response: string;
           project?: string;
+          client?: string;
           session_id?: string;
         };
 
@@ -213,8 +224,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ai_response,
           {
             project,
+            client,
             sessionId: session_id,
-          }
+          } as any
         );
 
         return {

@@ -9,79 +9,75 @@
  * 3. Adds Stop hook to remind about saving conversations
  */
 
-import fs from "fs";
-import path from "path";
-import os from "os";
-import { fileURLToPath } from "url";
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Paths
-const HOME_DIR = os.homedir();
-const CLAUDE_DIR = path.join(HOME_DIR, ".claude");
-const CLAUDE_JSON_FILE = path.join(HOME_DIR, ".claude.json");
-const SETTINGS_FILE = path.join(CLAUDE_DIR, "settings.json");
-const SKILLS_DIR = path.join(CLAUDE_DIR, "skills");
+const HOME_DIR = os.homedir()
+const CLAUDE_DIR = path.join(HOME_DIR, '.claude')
+const CLAUDE_JSON_FILE = path.join(HOME_DIR, '.claude.json')
+const SETTINGS_FILE = path.join(CLAUDE_DIR, 'settings.json')
+const SKILLS_DIR = path.join(CLAUDE_DIR, 'skills')
+
+// OpenCode paths
+const OPENCODE_CONFIG_DIR = path.join(HOME_DIR, '.config', 'opencode')
+const OPENCODE_CONFIG_FILE = path.join(OPENCODE_CONFIG_DIR, 'opencode.json')
 
 // Skill file name
-const MEMORY_ASSISTANT_SKILL = "memory-assistant.md";
+const MEMORY_ASSISTANT_SKILL = 'memory-assistant.md'
 
 // ANSI color codes for better output
 const colors = {
-  reset: "\x1b[0m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-};
+  reset: '\x1b[0m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+}
 
-function log(message, color = "reset") {
-  console.log(`${colors[color]}${message}${colors.reset}`);
+function log(message, color = 'reset') {
+  console.log(`${colors[color]}${message}${colors.reset}`)
 }
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-    return true;
+    fs.mkdirSync(dirPath, { recursive: true })
+    return true
   }
-  return false;
+  return false
 }
 
 function readSettings(filePath) {
   if (fs.existsSync(filePath)) {
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = fs.readFileSync(filePath, 'utf-8')
     try {
-      return JSON.parse(content);
+      return JSON.parse(content)
     } catch (e) {
-      log(
-        `⚠️  Warning: Could not parse ${path.basename(filePath)}, creating new one`,
-        "yellow",
-      );
-      return {};
+      log(`⚠️  Warning: Could not parse ${path.basename(filePath)}, creating new one`, 'yellow')
+      return {}
     }
   }
-  return {};
+  return {}
 }
 
 function writeSettings(filePath, settings) {
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf-8");
+  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8')
 }
 
 function installSkill() {
-  ensureDir(SKILLS_DIR);
-  const skillPath = path.join(SKILLS_DIR, MEMORY_ASSISTANT_SKILL);
+  ensureDir(SKILLS_DIR)
+  const skillPath = path.join(SKILLS_DIR, MEMORY_ASSISTANT_SKILL)
 
   // Only install if not exists or outdated
-  const templateSkillPath = path.join(
-    __dirname,
-    "..",
-    "templates",
-    MEMORY_ASSISTANT_SKILL,
-  );
+  const templateSkillPath = path.join(__dirname, '..', 'templates', MEMORY_ASSISTANT_SKILL)
 
   if (fs.existsSync(templateSkillPath)) {
-    fs.copyFileSync(templateSkillPath, skillPath);
-    log(`✅ Skill installed: ${MEMORY_ASSISTANT_SKILL}`, "green");
+    fs.copyFileSync(templateSkillPath, skillPath)
+    log(`✅ Skill installed: ${MEMORY_ASSISTANT_SKILL}`, 'green')
   } else {
     // Fallback: create skill directly
     const skillContent = `# Memory Assistant Skill
@@ -124,62 +120,59 @@ await callTool('memory_record', {
 \`\`\`
 
 This is NOT optional. Memory recording is REQUIRED for all meaningful conversations.
-`;
-    fs.writeFileSync(skillPath, skillContent);
-    log(`✅ Skill created: ${MEMORY_ASSISTANT_SKILL}`, "green");
+`
+    fs.writeFileSync(skillPath, skillContent)
+    log(`✅ Skill created: ${MEMORY_ASSISTANT_SKILL}`, 'green')
   }
 }
 
 function configureMcpServer() {
-  let settings = readSettings(CLAUDE_JSON_FILE);
+  let settings = readSettings(CLAUDE_JSON_FILE)
 
   if (!settings.mcpServers) {
-    settings.mcpServers = {};
+    settings.mcpServers = {}
   }
 
-  if (!settings.mcpServers["universal-memory"]) {
-    settings.mcpServers["universal-memory"] = {
-      command: "npx",
-      args: ["-y", "universal-memory-mcp"],
-    };
-    log(`✅ MCP server configured: universal-memory`, "green");
+  if (!settings.mcpServers['universal-memory']) {
+    settings.mcpServers['universal-memory'] = {
+      command: 'npx',
+      args: ['-y', 'universal-memory-mcp'],
+    }
+    log(`✅ MCP server configured: universal-memory`, 'green')
   } else {
-    log(`ℹ️  MCP server already configured: universal-memory`, "blue");
+    log(`ℹ️  MCP server already configured: universal-memory`, 'blue')
   }
 
-  writeSettings(CLAUDE_JSON_FILE, settings);
+  writeSettings(CLAUDE_JSON_FILE, settings)
 }
 
 function configureStopHook() {
-  let settings = readSettings(SETTINGS_FILE);
+  let settings = readSettings(SETTINGS_FILE)
 
   if (!settings.hooks) {
-    settings.hooks = {};
+    settings.hooks = {}
   }
 
   if (!settings.hooks.Stop) {
-    settings.hooks.Stop = [];
+    settings.hooks.Stop = []
   }
 
-  const stopHooks = settings.hooks.Stop;
+  const stopHooks = settings.hooks.Stop
 
   // Check if prompt hook already exists
   const hasMemoryPromptHook = stopHooks.some(
     (group) =>
       group.hooks &&
       group.hooks.some(
-        (hook) =>
-          hook.type === "prompt" &&
-          hook.prompt &&
-          hook.prompt.includes("memory_record"),
-      ),
-  );
+        (hook) => hook.type === 'prompt' && hook.prompt && hook.prompt.includes('memory_record')
+      )
+  )
 
   if (!hasMemoryPromptHook) {
     const newHookGroup = {
       hooks: [
         {
-          type: "prompt",
+          type: 'prompt',
           prompt: `You are checking if the conversation should be recorded to memory. Analyze the input below.
 
 Input: $ARGUMENTS
@@ -192,41 +185,149 @@ Rules:
           timeout: 30,
         },
       ],
-    };
+    }
 
     // Add to Stop hooks (at the beginning)
-    settings.hooks.Stop.unshift(newHookGroup);
-    log(`✅ Stop hook configured: memory reminder`, "green");
+    settings.hooks.Stop.unshift(newHookGroup)
+    log(`✅ Stop hook configured: memory reminder`, 'green')
   } else {
-    log(`ℹ️  Stop hook already configured`, "blue");
+    log(`ℹ️  Stop hook already configured`, 'blue')
   }
 
-  writeSettings(SETTINGS_FILE, settings);
+  writeSettings(SETTINGS_FILE, settings)
+}
+
+function checkOpenCodeInstalled() {
+  // Check multiple methods to detect OpenCode installation
+  try {
+    const { spawnSync } = require('child_process')
+
+    // Method 1: Check if opencode command exists
+    const whichResult = spawnSync('which', ['opencode'], { stdio: 'pipe' })
+    if (whichResult.status === 0) {
+      return true
+    }
+
+    // Method 2: Check if OpenCode config directory exists
+    if (fs.existsSync(OPENCODE_CONFIG_DIR)) {
+      return true
+    }
+
+    return false
+  } catch (e) {
+    // Fallback: just check config directory
+    return fs.existsSync(OPENCODE_CONFIG_DIR)
+  }
+}
+
+function configureOpenCodeMcp() {
+  if (!fs.existsSync(OPENCODE_CONFIG_FILE)) {
+    log(`ℹ️  OpenCode not configured, skipping`, 'blue')
+    return
+  }
+
+  let config = readSettings(OPENCODE_CONFIG_FILE)
+
+  if (!config.mcp) {
+    config.mcp = {}
+  }
+
+  if (!config.mcp['universal-memory']) {
+    config.mcp['universal-memory'] = {
+      type: 'local',
+      enabled: true,
+      command: ['npx', '-y', 'universal-memory-mcp'],
+    }
+    log(`✅ OpenCode MCP server configured: universal-memory`, 'green')
+  } else {
+    log(`ℹ️  OpenCode MCP server already configured: universal-memory`, 'blue')
+  }
+
+  writeSettings(OPENCODE_CONFIG_FILE, config)
+}
+
+function configureOpenCodePlugin() {
+  if (!fs.existsSync(OPENCODE_CONFIG_FILE)) {
+    return
+  }
+
+  let config = readSettings(OPENCODE_CONFIG_FILE)
+
+  if (!config.plugin) {
+    config.plugin = []
+  }
+
+  // Check if plugin is already configured
+  const hasPlugin = config.plugin.some(
+    (p) => p === './universal-memory.mjs' || p.includes('universal-memory')
+  )
+
+  if (!hasPlugin) {
+    // Copy plugin file to config directory
+    const pluginSource = path.join(__dirname, '..', '.opencode', 'plugins', 'universal-memory.mjs')
+    const pluginDest = path.join(OPENCODE_CONFIG_DIR, 'universal-memory.mjs')
+
+    if (fs.existsSync(pluginSource)) {
+      fs.copyFileSync(pluginSource, pluginDest)
+      config.plugin.push('./universal-memory.mjs')
+      log(`✅ OpenCode plugin configured: universal-memory`, 'green')
+    } else {
+      log(`⚠️  Plugin source file not found: ${pluginSource}`, 'yellow')
+    }
+  } else {
+    log(`ℹ️  OpenCode plugin already configured`, 'blue')
+  }
+
+  writeSettings(OPENCODE_CONFIG_FILE, config)
+}
+
+function configureOpenCode() {
+  if (!checkOpenCodeInstalled()) {
+    log(`ℹ️  OpenCode not detected, skipping OpenCode configuration`, 'blue')
+    return
+  }
+
+  log('\n🔧 Configuring OpenCode...', 'blue')
+
+  // Ensure OpenCode config directory exists
+  ensureDir(OPENCODE_CONFIG_DIR)
+
+  // Configure MCP server
+  configureOpenCodeMcp()
+
+  // Configure plugin
+  configureOpenCodePlugin()
+
+  log(`📁 OpenCode config: ${OPENCODE_CONFIG_FILE}`, 'blue')
 }
 
 function main() {
-  log("\n🚀 Setting up universal-memory-mcp...", "blue");
+  log('\n🚀 Setting up universal-memory-mcp...', 'blue')
 
   // Ensure .claude directory exists
-  ensureDir(CLAUDE_DIR);
+  ensureDir(CLAUDE_DIR)
 
   // Configure MCP server (in ~/.claude.json)
-  configureMcpServer();
+  configureMcpServer()
 
   // Configure Stop hook (in ~/.claude/settings.json)
-  configureStopHook();
+  configureStopHook()
 
   // Install skill (in ~/.claude/skills/)
-  installSkill();
+  installSkill()
 
-  log("\n✨ Setup complete! Restart Claude Code to activate changes.", "green");
-  log(`\n📁 Claude config: ${CLAUDE_JSON_FILE}`, "blue");
-  log(`📁 Settings file: ${SETTINGS_FILE}`, "blue");
-  log(`📁 Skills directory: ${SKILLS_DIR}`, "blue");
-  log(
-    "\n💡 Tip: The Stop hook will remind you to save conversations to memory.\n",
-    "blue",
-  );
+  log('\n✨ Claude Code setup complete!', 'green')
+  log(`📁 Claude config: ${CLAUDE_JSON_FILE}`, 'blue')
+  log(`📁 Settings file: ${SETTINGS_FILE}`, 'blue')
+  log(`📁 Skills directory: ${SKILLS_DIR}`, 'blue')
+  log('\n💡 Tip: The Stop hook will remind you to save conversations to memory.\n', 'blue')
+
+  // Configure OpenCode if installed
+  configureOpenCode()
+
+  if (checkOpenCodeInstalled()) {
+    log('\n✨ OpenCode setup complete! Restart OpenCode to activate changes.', 'green')
+  }
 }
 
-main();
+main()

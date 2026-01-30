@@ -14,7 +14,17 @@
 
 ## 核心理念
 
-### 上下文 ≠ 记忆
+### AI Agent = 模型 + 上下文 + 记忆
+
+真正的智能代理需要三个要素:
+
+| 要素     | 作用                 | 现状                        |
+| -------- | -------------------- | --------------------------- |
+| 模型     | 推理和生成能力       | GPT-4/Claude 等强大模型     |
+| 上下文   | 当前对话的临时信息   | 128K-200K tokens 窗口限制   |
+| **记忆** | **跨会话的长期知识** | **缺失 → 这就是我们的目标** |
+
+**上下文 ≠ 记忆**:
 
 | 特性         | 上下文（Context）              | 记忆（Memory）     |
 | ------------ | ------------------------------ | ------------------ |
@@ -22,6 +32,8 @@
 | **容量**     | 受限于窗口（128K-200K tokens） | 无限制             |
 | **成本**     | 每次传输都计费                 | 只在检索时计费     |
 | **可操作性** | 只能读取                       | 可读、可写、可搜索 |
+
+**我们的使命**: 让任何 AI CLI 工具拥有长期记忆,成为真正的个人大管家。
 
 ### 工作原理
 
@@ -60,11 +72,11 @@
 
 我们借鉴人类大脑的记忆整合机制，设计了三层记忆架构：
 
-| 层级 | 类比 | 存储 | 特点 |
-|------|------|------|------|
-| **Level 0** | 感觉记忆 | `daily/*.md` | 原始对话流水，完整但冗余 |
-| **Level 1** | 短期记忆 | `long_term/*.md` | 提取的条目，带时间戳可追溯 |
-| **Level 2** | 长期记忆 | `*-summary.md` | 整合的摘要，结构化可直接使用 |
+| 层级        | 类比     | 存储             | 特点                         |
+| ----------- | -------- | ---------------- | ---------------------------- |
+| **Level 0** | 感觉记忆 | `daily/*.md`     | 原始对话流水，完整但冗余     |
+| **Level 1** | 短期记忆 | `long_term/*.md` | 提取的条目，带时间戳可追溯   |
+| **Level 2** | 长期记忆 | `*-summary.md`   | 整合的摘要，结构化可直接使用 |
 
 详细设计文档：[记忆整合系统设计](./docs/memory-consolidation-design.md)
 
@@ -90,15 +102,40 @@ MCP 协议是一个**工具提供协议**，不是中间件。这意味着：
 npm install -g universal-memory-mcp
 ```
 
-### 配置 OpenCode (自动采集)
+### 配置 OpenCode (自动采集) ✨
+
+**自动配置**（推荐）：
+
+```bash
+npm install -g universal-memory-mcp
+```
+
+安装脚本会自动检测并配置 OpenCode：
+
+- ✅ MCP Server（`~/.config/opencode/opencode.json`）
+- ✅ OpenCode 插件（自动记录每次对话）
+- ✅ 基于 `session.idle` 事件触发
+
+**重启 OpenCode** 后即可使用。
+
+**手动配置**（如果自动安装失败）：
 
 编辑 `~/.config/opencode/opencode.json`：
 
 ```json
 {
-  "plugin": ["@slicenferqin/opencode-universal-memory"]
+  "mcp": {
+    "universal-memory": {
+      "type": "local",
+      "enabled": true,
+      "command": ["npx", "-y", "universal-memory-mcp"]
+    }
+  },
+  "plugin": ["./universal-memory.mjs"]
 }
 ```
+
+详见 [OpenCode 集成文档](docs/OPENCODE_INTEGRATION.md)
 
 **特性**：
 
@@ -115,6 +152,7 @@ npm install -g universal-memory-mcp
 ```
 
 安装后会自动配置：
+
 - ✅ MCP Server（`~/.claude/settings.json`）
 - ✅ Memory Assistant Skill（自动引导 AI 使用记忆）
 - ✅ Stop Hook（自动记录每次对话）
@@ -263,6 +301,47 @@ memory_update_long_term({
 - 做出重要决策
 - 获知关键信息
 
+## 核心设计原则
+
+### 1. 基于脑科学的三层记忆架构
+
+我们借鉴人类大脑的记忆整合机制,设计了渐进式记忆系统:
+
+```
+Level 0 (感觉记忆) → Level 1 (短期记忆) → Level 2 (长期记忆)
+daily/*.md         →  long_term/*.md     →  *-summary.md
+完整但冗余          →  可追溯条目         →  结构化知识
+```
+
+**为什么这样设计?**
+
+- **模仿自然**: 人类大脑不是简单存储,而是主动整合信息
+- **渐进增强**: 可以在不同层级工作,不必一次性实现所有功能
+- **可追溯性**: 每层都有价值 - Level 0 完整性, Level 1 可追踪, Level 2 可用性
+
+### 2. 100% 本地优先
+
+| 决策           | 选择              | 原因                         |
+| -------------- | ----------------- | ---------------------------- |
+| 存储格式       | Markdown + JSON   | 透明、可迁移、用户可控       |
+| 向量数据库     | **sqlite-vec**    | 单文件、无依赖、支持向量搜索 |
+| Embedding 模型 | Gemini (免费优先) | 零成本、易用                 |
+| 整理引擎       | Claude Code CLI   | 复用用户订阅、无需额外 API   |
+
+**对比 mem0**: 我们不提供 SaaS,不收集数据,所有功能在本地运行。
+
+### 3. 通用协议 > 特定平台
+
+- **MCP 协议**: 一次实现,支持所有 MCP 兼容工具(Claude Code、Gemini CLI 等)
+- **Plugin 适配**: 为 OpenCode 等非 MCP 工具提供原生插件
+- **渐进式集成**: 从手动记录 → 自动采集 → 智能搜索 → 自动整理
+
+### 4. 用户可控
+
+- **数据所有权**: 所有存储在 `~/.ai_memory/`,可随时查看、编辑、迁移
+- **透明性**: 每条记忆都有来源、时间戳、置信度
+- **可干预**: 手动触发整理、调整搜索策略、修正错误记忆
+
 ## 记忆结构
 
 ### 每日流水 (daily/\*.md) - Level 0
@@ -284,6 +363,7 @@ memory_update_long_term({
 ### 长期记忆 (long_term/) - Level 1 & 2
 
 **Level 1 - 原始条目** (`profile.md`, `facts.md`, `decisions.md`):
+
 ```markdown
 # User Profile
 
@@ -293,16 +373,19 @@ memory_update_long_term({
 ```
 
 **Level 2 - 整合摘要** (`profile-summary.md`):
+
 ```markdown
 # User Profile Summary
 
 > Last consolidated: 2026-01-29
 
 ## 基本信息
+
 - **职业角色**: 全栈开发者/技术架构师
 - **主要领域**: AI 工具开发、MCP 服务器
 
 ## 技术栈
+
 - **语言**: TypeScript, Node.js
 - **工具**: pnpm, Claude Code, MCP 框架
 ```
@@ -313,17 +396,36 @@ memory_update_long_term({
 
 - **Memory Manager**: 记忆管理（记录、存储、检索）
 - **MCP Server**: MCP 协议实现（工具暴露）
-- **Search Engine**: 搜索引擎（关键词 + 语义）
+- **Search Engine**: 关键词搜索 (SQLite FTS5) → 语义搜索 (向量)
 - **Consolidator**: 记忆整合（提取 + 二次整合）
 
-### 技术选型
+### 技术栈
 
-| 组件       | 技术选择    | 原因                         |
-| ---------- | ----------- | ---------------------------- |
-| 索引数据库 | sqlite-vec  | 单文件、无依赖、支持向量搜索 |
-| 全文搜索   | SQLite FTS5 | 内置、高效 BM25              |
-| Embedding  | 可配置      | 支持 OpenAI / Local / Gemini |
-| 存储       | 文件系统    | 透明、可迁移、用户可控       |
+| 组件       | 技术选择              | 原因                            |
+| ---------- | --------------------- | ------------------------------- |
+| 存储层     | Markdown + JSON 文件  | 透明、可迁移、用户可控          |
+| 索引数据库 | **sqlite-vec**        | 单文件、无依赖、原生向量搜索    |
+| 全文搜索   | SQLite FTS5           | 内置、高效 BM25                 |
+| Embedding  | **Gemini** (免费优先) | 零成本、768维、速度快           |
+| Embedding  | OpenAI / Local (可选) | 生产环境 / 离线隐私             |
+| 整理引擎   | Claude Code CLI       | 复用用户订阅、无需额外 API 密钥 |
+
+### 核心设计决策
+
+1. **为什么选 sqlite-vec 而不是 ChromaDB/Qdrant?**
+   - 单文件部署,无需额外服务
+   - 与 FTS5 结合实现混合搜索
+   - 跨平台,易维护
+
+2. **为什么用 Claude Code CLI 而不是直接调用 OpenAI API?**
+   - 零成本:使用用户的 Claude 订阅
+   - 简单集成:无需管理 API 密钥
+   - 高质量:Claude 有完整的上下文理解能力
+
+3. **为什么是三层架构而不是扁平存储?**
+   - 模仿人类大脑的记忆整合机制
+   - 渐进增强,不必一次性实现所有功能
+   - 每层都有明确的职责和价值
 
 ## 文档
 
@@ -364,18 +466,126 @@ universal-memory-mcp/
 
 ## 路线图
 
-- [x] v0.1.0: 基础记忆系统（记录 + 搜索）
-- [x] v0.2.0: OpenCode Plugin 自动采集
-- [x] v0.3.0: Claude Code 自动记录（Stop hook + Skill）
-- [x] v0.3.1: Client 字段支持（区分不同客户端）
-- [x] v0.3.2: 三层记忆架构（基于脑科学的记忆整合）
-- [ ] v0.4.0: 向量索引（语义搜索）
-- [ ] v0.5.0: 混合搜索（语义 + 关键词）
-- [ ] v1.0.0: 稳定版本
+### ✅ 已完成
+
+- **v0.1.0**: 基础记忆系统 (记录 + 搜索)
+- **v0.2.0**: OpenCode Plugin 自动采集
+- **v0.3.0**: Claude Code 自动记录 (Stop hook + Skill)
+- **v0.3.1**: Client 字段支持 (区分不同客户端)
+- **v0.3.2**: 三层记忆架构 (基于脑科学的记忆整合)
+  - Level 0 → Level 1: 每日提取
+  - Level 1 → Level 2: 定期整合
+  - 使用 Claude Code CLI 作为 LLM 提取器
+
+### 🚧 进行中 (v0.4.x - 向量搜索)
+
+**目标**: 实现语义搜索,提升检索质量
+
+- [ ] **v0.4.0**: Embedding 基础设施
+  - Gemini Embedding Provider (免费)
+  - OpenAI Embedding Provider (可选)
+  - 分块策略 (对话级 chunking)
+
+- [ ] **v0.4.1**: 向量索引
+  - 集成 sqlite-vec
+  - 实时索引 (新对话自动索引)
+  - 批量索引 (历史数据处理)
+
+- [ ] **v0.4.2**: 语义搜索
+  - 向量相似度搜索
+  - 时间衰减权重
+  - 项目相关性加权
+
+- [ ] **v0.4.3**: 混合搜索
+  - 关键词 (FTS5) + 语义 (向量)
+  - RRF (Reciprocal Rank Fusion) 算法
+  - 可配置权重
+
+### 📋 计划中 (v0.5.x - 智能记忆)
+
+**目标**: 自动化记忆管理,提升可用性
+
+- [ ] **v0.5.0**: 自动记忆整理优化
+  - 定时触发 (cron 集成)
+  - 阈值触发 (超过 N 条对话)
+  - 增量整理 (只处理新内容)
+
+- [ ] **v0.5.1**: 记忆去重与合并
+  - 向量相似度去重
+  - 智能合并重复条目
+  - 冲突解决策略
+
+- [ ] **v0.5.2**: 重要性评分
+  - 自动识别重要对话
+  - 基于引用频率和访问模式
+  - 优先展示高价值记忆
+
+### 🎯 长期愿景 (v1.0+)
+
+- [ ] **v1.0.0**: 稳定版本
+  - 完整的三层记忆系统
+  - 高质量混合搜索
+  - 自动化记忆管理
+  - 完善的文档和测试
+
+- [ ] **v1.1.0**: 跨项目记忆
+  - 跨项目知识图谱
+  - 技术栈关联
+  - 最佳实践推荐
+
+- [ ] **v1.2.0**: 多模态记忆
+  - 图片记忆 (截图、设计图)
+  - 代码片段索引
+  - 文件关联
+
+### 核心里程碑
+
+```
+v0.3.x      v0.4.x          v0.5.x          v1.0+
+┌─────┐    ┌──────┐       ┌──────┐       ┌──────┐
+│ 记录 │ →  │ 搜索 │  →   │ 整理 │  →   │ 智能化 │
+│     │    │ 语义 │       │ 自动 │       │       │
+└─────┘    └──────┘       └──────┘       └──────┘
+基础功能    检索质量       用户体验       Agent 能力
+```
+
+## 下一步
+
+### 当前重点 (v0.4.x)
+
+**实现向量搜索,提升记忆检索质量:**
+
+1. **Week 1**: Embedding 基础设施
+   - 实现 Gemini Embedding Provider
+   - 对话分块逻辑
+   - 单元测试
+
+2. **Week 2**: 向量索引
+   - 集成 sqlite-vec
+   - 实现索引构建流程
+   - 批量索引历史数据
+
+3. **Week 3**: 语义搜索
+   - 实现向量相似度搜索
+   - 混合搜索 (关键词 + 语义)
+   - 性能优化
+
+**如何参与:**
+
+- 查看 [docs/semantic-search-plan.md](./docs/semantic-search-plan.md) 了解详细设计
+- 查看 [docs/v0.3.2-consolidation-design.md](./docs/v0.3.2-consolidation-design.md) 了解当前实现
+- 提交 Issue 或 PR 贡献代码
 
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request！
+
+**特别欢迎:**
+
+- 新的 Embedding Provider 实现
+- 性能优化建议
+- 文档改进
+- Bug 修复
 
 ## 许可证
 
@@ -398,3 +608,27 @@ AI 效果 = AI 能力 × 上下文质量 × 记忆深度
 ```
 
 AI 能力是固定的，但上下文质量和记忆深度是你可以控制的变量。
+
+## 核心文档
+
+### 设计文档
+
+- [记忆整合系统设计](./docs/memory-consolidation-design.md) - 三层记忆架构的理论基础
+- [语义搜索技术方案](./docs/semantic-search-plan.md) - v0.4.x 向量搜索实现计划
+- [v0.3.2 技术设计](./docs/v0.3.2-consolidation-design.md) - 当前实现的详细设计
+
+### 集成指南
+
+- [OpenCode 集成](./docs/OPENCODE_INTEGRATION.md) - OpenCode Plugin 配置
+- [工作原理](./docs/how-it-works.md) - 系统架构和数据流
+- [快速开始](./docs/getting-started.md) - 5 分钟上手指南
+
+### 技术选型
+
+- [技术选型报告](./docs/TECH_SELECTION_REPORT.md) - MCP vs Skill vs Plugin 分析
+- [竞争分析: mem0](./docs/COMPARISON_MEM0.md) - 与 mem0 的对比
+
+### 愿景文档
+
+- [记忆的未来](./docs/THE_FUTURE_OF_MEMORY.md) - AI Agent = 模型 + 上下文 + 记忆
+- [记忆系统设计](./docs/MEMORY_SYSTEM_DESIGN.md) - 脑科学启发的记忆架构

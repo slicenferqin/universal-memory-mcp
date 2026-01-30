@@ -1,6 +1,6 @@
 {
-  "name": "@slicenferqin/opencode-universal-memory",
-  "version": "0.1.0",
+  "name": "opencode-universal-memory",
+  "version": "0.3.4",
   "type": "module",
   "description": "OpenCode plugin that records conversations into universal-memory daily logs.",
   "keywords": [
