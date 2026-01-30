@@ -1,6 +1,6 @@
 {
   "name": "universal-memory-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Universal memory system for AI CLI tools via MCP protocol",
   "keywords": [
     "mcp",
