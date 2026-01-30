@@ -15,7 +15,10 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "vitest"
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
@@ -26,8 +29,10 @@
     "@types/better-sqlite3": "^7.6.8",
     "@types/chokidar": "^1.7.5",
     "@types/node": "^20.11.0",
+    "@vitest/ui": "^1.6.1",
+    "@vitest/coverage-v8": "^1.6.1",
     "typescript": "^5.3.0",
-    "vitest": "^1.2.0"
+    "vitest": "^1.6.1"
   },
   "keywords": [
     "memory",
