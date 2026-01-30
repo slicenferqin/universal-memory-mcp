@@ -7,9 +7,10 @@
 import type { EmbeddingProvider } from '../types.js'
 import { GeminiEmbeddingProvider } from './gemini.js'
 import { OpenAIEmbeddingProvider } from './openai.js'
+import { ZhipuAIEmbeddingProvider } from './zhipuai.js'
 
 export interface CreateEmbeddingProviderOptions {
-  type: 'gemini' | 'openai'
+  type: 'gemini' | 'openai' | 'zhipuai'
   apiKey?: string
   model?: string
 }
@@ -21,6 +22,12 @@ export function createEmbeddingProvider(
   options: CreateEmbeddingProviderOptions
 ): EmbeddingProvider {
   switch (options.type) {
+    case 'zhipuai':
+      return new ZhipuAIEmbeddingProvider({
+        apiKey: options.apiKey,
+        model: options.model as 'embedding-3' | 'embedding-2',
+      })
+
     case 'gemini':
       return new GeminiEmbeddingProvider({
         apiKey: options.apiKey,
@@ -38,10 +45,15 @@ export function createEmbeddingProvider(
 }
 
 /**
- * Create default embedding provider (prioritizes free options)
+ * Create default embedding provider (prioritizes domestic options)
  */
 export function createDefaultEmbeddingProvider(): EmbeddingProvider {
-  // Try Gemini first (free)
+  // Try domestic providers first (ZhipuAI)
+  if (process.env.ZHIPUAI_API_KEY || process.env.ZHIPU_API_KEY) {
+    return new ZhipuAIEmbeddingProvider()
+  }
+
+  // Try Gemini (free)
   if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
     return new GeminiEmbeddingProvider()
   }
@@ -52,8 +64,9 @@ export function createDefaultEmbeddingProvider(): EmbeddingProvider {
   }
 
   throw new Error(
-    'No embedding provider API key found. Please set either:\n' +
-      '- GEMINI_API_KEY (recommended, free tier available)\n' +
-      '- OPENAI_API_KEY (paid)'
+    'No embedding provider API key found. Please set one of:\n' +
+      '- ZHIPUAI_API_KEY (智谱AI, 推荐)\n' +
+      '- GEMINI_API_KEY (Google)\n' +
+      '- OPENAI_API_KEY (OpenAI)'
   )
 }
