@@ -112,67 +112,37 @@ async function recordViaUniversalMemory(payload: AnyRecord, cwd: string) {
 }
 
 async function fetchLastExchange(client: AnyRecord, sessionId: string) {
-  process.stderr.write(`[UniversalMemory] Fetching messages for session: ${sessionId}\n`);
-  
-  const response = await client.session.messages({ path: { id: sessionId } });
-  
-  process.stderr.write(`[UniversalMemory] Response type: ${typeof response}\n`);
-  process.stderr.write(`[UniversalMemory] Response keys: ${Object.keys(response || {})}\n`);
-  
+  process.stderr.write(`[UniversalMemory] Fetching messages for session: ${sessionId}\n`)
+
+  const response = await client.session.messages({ path: { id: sessionId } })
+
+  process.stderr.write(`[UniversalMemory] Response type: ${typeof response}\n`)
+  process.stderr.write(`[UniversalMemory] Response keys: ${Object.keys(response || {})}\n`)
+
   const items = Array.isArray(response?.data)
     ? response.data
     : Array.isArray(response)
       ? response
-      : [];
-  
-  process.stderr.write(`[UniversalMemory] Items count: ${items.length}\n`);
-  
+      : []
+
+  process.stderr.write(`[UniversalMemory] Items count: ${items.length}\n`)
+
   const normalized = items
     .map((item: AnyRecord) => {
-      const info = item?.info ?? item?.message ?? item?.data?.info ?? item?.data?.message;
-      const parts = item?.parts ?? item?.data?.parts;
-      const role = info?.role ?? info?.type ?? info?.author;
-      const text = joinPartsText(parts) || (typeof info?.text === 'string' ? info.text : '');
-      return { role: roleNorm(role), text: String(text).trim() };
+      const info = item?.info ?? item?.message ?? item?.data?.info ?? item?.data?.message
+      const parts = item?.parts ?? item?.data?.parts
+      const role = info?.role ?? info?.type ?? info?.author
+      const text = joinPartsText(parts) || (typeof info?.text === 'string' ? info.text : '')
+      return { role: roleNorm(role), text: String(text).trim() }
     })
-    .filter((m: { role: string; text: string }) => m.role && isNonEmptyString(m.text));
+    .filter((m: { role: string; text: string }) => m.role && isNonEmptyString(m.text))
 
-  process.stderr.write(`[UniversalMemory] Normalized messages: ${normalized.length}\n`);
-  
+  process.stderr.write(`[UniversalMemory] Normalized messages: ${normalized.length}\n`)
+
   const lastUserIdx = (() => {
     for (let i = normalized.length - 1; i >= 0; i--) {
-      if (normalized[i].role === 'user') return i;
+      if (normalized[i].role === 'user') return i
     }
-    return -1;
-  })();
-
-  const lastAssistantIdxAfterUser = (() => {
-    if (lastUserIdx === -1) return -1;
-    for (let i = lastUserIdx + 1; i < normalized.length; i++) {
-      if (normalized[i].role === 'assistant') return i;
-    }
-    return -1;
-  })();
-
-  const lastAssistantIdx = (() => {
-    for (let i = normalized.length - 1; i >= 0; i--) {
-      if (normalized[i].role === 'assistant') return i;
-    }
-    return -1;
-  })();
-
-  const userText = lastUserIdx !== -1 ? normalized[lastUserIdx].text : '';
-  const aiText =
-    lastAssistantIdxAfterUser !== -1
-      ? normalized[lastAssistantIdxAfterUser].text
-      : lastAssistantIdx !== -1
-        ? normalized[lastAssistantIdx].text
-        : '';
-  
-  process.stderr.write(`[UniversalMemory] User text length: ${userText.length}, AI text length: ${aiText.length}\n`);
-
-  return { userText, aiText };
-}
     return -1
   })()
 
@@ -198,6 +168,10 @@ async function fetchLastExchange(client: AnyRecord, sessionId: string) {
       : lastAssistantIdx !== -1
         ? normalized[lastAssistantIdx].text
         : ''
+
+  process.stderr.write(
+    `[UniversalMemory] User text length: ${userText.length}, AI text length: ${aiText.length}\n`
+  )
 
   return { userText, aiText }
 }
