@@ -17,6 +17,9 @@ export interface SemanticSearchOptions extends SearchOptions {
   // Relevance weighting
   projectRelevance?: boolean
   currentProject?: string
+  // Candidate pool expansion for hybrid search
+  candidateMultiplier?: number // Multiplier for candidate pool size (default: 4)
+  maxCandidates?: number // Hard limit for candidate pool (default: 200)
 }
 
 /**
@@ -74,6 +77,8 @@ export async function semanticSearch(
     timeDecayHalfLife = 30,
     projectRelevance = true,
     currentProject,
+    candidateMultiplier = 4, // Default: expand 4x
+    maxCandidates = 200, // Hard limit: 200 candidates
   } = options
 
   // Generate query embedding
@@ -88,12 +93,11 @@ export async function semanticSearch(
     if (timeRange[1]) filters.maxTimestamp = timeRange[1].getTime()
   }
 
-  // Perform semantic search
-  const vectorResults = vectorStore.semanticSearch(
-    queryEmbedding,
-    limit * 2, // Get more results for re-ranking
-    filters
-  )
+  // Calculate candidate pool size with hard limit
+  const candidates = Math.min(maxCandidates, Math.max(1, Math.floor(limit * candidateMultiplier)))
+
+  // Perform semantic search with expanded candidate pool
+  const vectorResults = vectorStore.semanticSearch(queryEmbedding, candidates, filters)
 
   // Apply time decay and project relevance
   const enhancedResults: SearchResult[] = vectorResults.map((result) => {
@@ -142,6 +146,8 @@ export async function hybridSearch(
     vectorStore,
     embeddingProvider,
     limit = 10,
+    candidateMultiplier = 4, // Default: expand 4x
+    maxCandidates = 200, // Hard limit: 200 candidates
     ...searchOptions
   } = options
 
@@ -150,16 +156,19 @@ export async function hybridSearch(
   const normSemanticWeight = semanticWeight / totalWeight
   const normKeywordWeight = keywordWeight / totalWeight
 
-  // Perform semantic search
+  // Calculate candidate pool size with hard limit
+  const candidates = Math.min(maxCandidates, Math.max(1, Math.floor(limit * candidateMultiplier)))
+
+  // Perform semantic search with expanded candidate pool
   const semanticResults = await semanticSearch(query, {
     ...searchOptions,
     embeddingProvider,
     vectorStore,
-    limit: limit * 2,
+    limit: candidates,
   })
 
-  // Perform keyword search
-  const keywordResults = vectorStore.keywordSearch(query, limit * 2)
+  // Perform keyword search with expanded candidate pool
+  const keywordResults = vectorStore.keywordSearch(query, candidates)
 
   // RRF fusion
   const k = 60 // RRF constant
@@ -210,7 +219,7 @@ export async function hybridSearch(
     }
   })
 
-  // Sort by fused score and return
+  // Sort by fused score and return final results (limited to original limit)
   return Array.from(fusedScores.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)

@@ -25,6 +25,15 @@ export interface IndexingStats {
   errors: string[]
 }
 
+export interface IndexingJob {
+  id: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  startedAt: number
+  completedAt?: number
+  error?: string
+  stats?: IndexingStats
+}
+
 /**
  * Indexing pipeline for conversations
  */
@@ -32,6 +41,8 @@ export class IndexingPipeline {
   private vectorStore: VectorStore
   private embeddingProvider: EmbeddingProvider
   private storagePath: string
+  private dirty: boolean = false
+  private currentJob: IndexingJob | null = null
 
   constructor(vectorStore: VectorStore, embeddingProvider: EmbeddingProvider, storagePath: string) {
     this.vectorStore = vectorStore
@@ -156,7 +167,68 @@ export class IndexingPipeline {
       }
     }
 
+    // Reset dirty flag after successful indexing
+    this.dirty = false
+
     return stats
+  }
+
+  /**
+   * Index recent conversations asynchronously (non-blocking)
+   * Returns immediately with a job ID, indexing happens in background
+   */
+  indexRecentAsync(days: number, options: IndexingOptions = {}): IndexingJob {
+    // Create job
+    const job: IndexingJob = {
+      id: `index-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      status: 'pending',
+      startedAt: Date.now(),
+    }
+
+    this.currentJob = job
+
+    // Start indexing in background
+    setImmediate(async () => {
+      try {
+        job.status = 'running'
+
+        const stats = await this.indexRecent(days, {
+          ...options,
+          verbose: options.verbose ?? false,
+        })
+
+        job.status = 'completed'
+        job.completedAt = Date.now()
+        job.stats = stats
+      } catch (error) {
+        job.status = 'failed'
+        job.completedAt = Date.now()
+        job.error = error instanceof Error ? error.message : String(error)
+      }
+    })
+
+    return job
+  }
+
+  /**
+   * Check if there are pending changes that need indexing
+   */
+  isDirty(): boolean {
+    return this.dirty
+  }
+
+  /**
+   * Mark that there are pending changes
+   */
+  markDirty(): void {
+    this.dirty = true
+  }
+
+  /**
+   * Get current indexing job status
+   */
+  getCurrentJob(): IndexingJob | null {
+    return this.currentJob
   }
 
   /**
