@@ -20,6 +20,8 @@ export interface SemanticSearchOptions extends SearchOptions {
   // Candidate pool expansion for hybrid search
   candidateMultiplier?: number // Multiplier for candidate pool size (default: 4)
   maxCandidates?: number // Hard limit for candidate pool (default: 200)
+  // Fusion algorithm for hybrid search
+  fusionAlgorithm?: 'rrf' | 'weighted' // Fusion algorithm (default: 'rrf')
 }
 
 /**
@@ -129,9 +131,89 @@ export async function semanticSearch(
 }
 
 /**
+ * Weighted Score fusion algorithm
+ *
+ * Combines vector and text scores using weighted average
+ */
+export function weightedScoreMerge(
+  vectorResults: SearchResult[],
+  textResults: Array<{
+    id: string
+    content: string
+    score: number
+    rank?: number
+    timestamp: number
+    project?: string
+  }>,
+  options: {
+    vectorWeight: number
+    textWeight: number
+  }
+): SearchResult[] {
+  const { vectorWeight, textWeight } = options
+
+  // Normalize weights
+  const totalWeight = vectorWeight + textWeight
+  const normVectorWeight = vectorWeight / totalWeight
+  const normTextWeight = textWeight / totalWeight
+
+  // Use Map to merge results by ID
+  const byId = new Map<
+    string,
+    {
+      result: SearchResult
+      vectorScore: number
+      textScore: number
+    }
+  >()
+
+  // Add vector results
+  vectorResults.forEach((result) => {
+    byId.set(result.sourcePath, {
+      result,
+      vectorScore: result.score,
+      textScore: 0,
+    })
+  })
+
+  // Add text results
+  textResults.forEach((textResult) => {
+    const existing = byId.get(textResult.id)
+
+    if (existing) {
+      // Update text score for existing entry
+      existing.textScore = textResult.score
+    } else {
+      // Create new entry with only text score
+      byId.set(textResult.id, {
+        result: {
+          content: textResult.content,
+          score: textResult.score, // Will be overridden
+          timestamp: new Date(textResult.timestamp),
+          project: textResult.project,
+          sourcePath: textResult.id,
+        },
+        vectorScore: 0,
+        textScore: textResult.score,
+      })
+    }
+  })
+
+  // Calculate weighted scores and sort
+  return Array.from(byId.values())
+    .map(({ result, vectorScore, textScore }) => ({
+      ...result,
+      score: Math.min(normVectorWeight * vectorScore + normTextWeight * textScore, 1.0),
+    }))
+    .sort((a, b) => b.score - a.score)
+}
+
+/**
  * Hybrid search combining semantic and keyword results
  *
- * Uses Reciprocal Rank Fusion (RRF) algorithm
+ * Supports two fusion algorithms:
+ * - RRF (Reciprocal Rank Fusion): Default, rank-based fusion
+ * - Weighted: Score-based weighted average
  */
 export async function hybridSearch(
   query: string,
@@ -148,6 +230,7 @@ export async function hybridSearch(
     limit = 10,
     candidateMultiplier = 4, // Default: expand 4x
     maxCandidates = 200, // Hard limit: 200 candidates
+    fusionAlgorithm = 'rrf', // Default: RRF
     ...searchOptions
   } = options
 
@@ -170,61 +253,80 @@ export async function hybridSearch(
   // Perform keyword search with expanded candidate pool
   const keywordResults = vectorStore.keywordSearch(query, candidates)
 
-  // RRF fusion
-  const k = 60 // RRF constant
-  const fusedScores = new Map<
-    string,
-    {
-      result: SearchResult
-      score: number
-    }
-  >()
+  // Choose fusion algorithm
+  if (fusionAlgorithm === 'weighted') {
+    // Weighted Score fusion
+    return weightedScoreMerge(
+      semanticResults,
+      keywordResults.map((r) => ({
+        id: r.id,
+        content: r.content,
+        score: r.score,
+        timestamp: r.timestamp,
+        project: r.project,
+      })),
+      {
+        vectorWeight: semanticWeight,
+        textWeight: keywordWeight,
+      }
+    ).slice(0, limit)
+  } else {
+    // RRF fusion (default)
+    const k = 60 // RRF constant
+    const fusedScores = new Map<
+      string,
+      {
+        result: SearchResult
+        score: number
+      }
+    >()
 
-  // Add semantic results
-  semanticResults.forEach((result, rank) => {
-    const score = (normSemanticWeight * k) / (k + rank + 1)
-    const existing = fusedScores.get(result.sourcePath)
+    // Add semantic results
+    semanticResults.forEach((result, rank) => {
+      const score = (normSemanticWeight * k) / (k + rank + 1)
+      const existing = fusedScores.get(result.sourcePath)
 
-    if (existing) {
-      existing.score += score
-    } else {
-      fusedScores.set(result.sourcePath, {
-        result,
-        score,
-      })
-    }
-  })
+      if (existing) {
+        existing.score += score
+      } else {
+        fusedScores.set(result.sourcePath, {
+          result,
+          score,
+        })
+      }
+    })
 
-  // Add keyword results
-  keywordResults.forEach((result, rank) => {
-    const score = (normKeywordWeight * k) / (k + rank + 1)
-    const sourcePath = result.id // VectorSearchResult uses 'id'
+    // Add keyword results
+    keywordResults.forEach((result, rank) => {
+      const score = (normKeywordWeight * k) / (k + rank + 1)
+      const sourcePath = result.id // VectorSearchResult uses 'id'
 
-    const existing = fusedScores.get(sourcePath)
+      const existing = fusedScores.get(sourcePath)
 
-    if (existing) {
-      existing.score += score
-    } else {
-      // Convert VectorSearchResult to SearchResult
-      fusedScores.set(sourcePath, {
-        result: {
-          content: result.content,
-          score: result.score, // Will be overridden by fused score
-          timestamp: new Date(result.timestamp),
-          project: result.project,
-          sourcePath: result.id,
-        },
-        score,
-      })
-    }
-  })
+      if (existing) {
+        existing.score += score
+      } else {
+        // Convert VectorSearchResult to SearchResult
+        fusedScores.set(sourcePath, {
+          result: {
+            content: result.content,
+            score: result.score, // Will be overridden by fused score
+            timestamp: new Date(result.timestamp),
+            project: result.project,
+            sourcePath: result.id,
+          },
+          score,
+        })
+      }
+    })
 
-  // Sort by fused score and return final results (limited to original limit)
-  return Array.from(fusedScores.values())
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((item) => ({
-      ...item.result,
-      score: Math.min(item.score, 1.0), // Normalize to [0, 1]
-    }))
+    // Sort by fused score and return final results (limited to original limit)
+    return Array.from(fusedScores.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((item) => ({
+        ...item.result,
+        score: Math.min(item.score, 1.0), // Normalize to [0, 1]
+      }))
+  }
 }
