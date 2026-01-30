@@ -8,8 +8,10 @@
  * - 混合搜索
  */
 
-export * from './types.js';
-export * from './memory-manager.js';
-export * from './storage.js';
-export * from './search.js';
-export * from './config.js';
+export * from './types.js'
+export * from './memory-manager.js'
+export * from './storage.js'
+export * from './search.js'
+export * from './config.js'
+export * from './embedding/index.js'
+export * from './embedding/chunker.js'
