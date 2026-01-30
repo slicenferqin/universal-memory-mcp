@@ -11,6 +11,7 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { ArchiveManager } from '../archive.js'
+import type { IndexingPipeline } from '../vectorstore/pipeline.js'
 
 export interface SchedulerConfig {
   storagePath: string
@@ -21,6 +22,11 @@ export interface SchedulerConfig {
   // Archive thresholds (in days)
   archiveDailyAfter?: number // Default: 7 days
   archiveLongTermAfter?: number // Default: 30 days
+  // Consolidation options
+  extractionModel?: 'haiku' | 'sonnet' | 'opus' // Default: 'haiku'
+  consolidationModel?: 'haiku' | 'sonnet' | 'opus' // Default: 'sonnet'
+  // Indexing pipeline for vectorization
+  indexingPipeline?: IndexingPipeline
 }
 
 export interface ScheduleResult {
@@ -57,6 +63,7 @@ export class LifecycleScheduler {
     history: [],
   }
   private running: boolean = false
+  private archiveManager: ArchiveManager
 
   constructor(config: SchedulerConfig) {
     this.config = {
@@ -65,8 +72,11 @@ export class LifecycleScheduler {
       monthlyInterval: 30 * 24 * 60 * 60 * 1000, // 30 days
       archiveDailyAfter: 7, // 7 days
       archiveLongTermAfter: 30, // 30 days
+      extractionModel: 'haiku',
+      consolidationModel: 'sonnet',
       ...config,
     }
+    this.archiveManager = new ArchiveManager(this.config.storagePath)
   }
 
   /**
@@ -172,8 +182,7 @@ export class LifecycleScheduler {
   /**
    * Run daily task: L0 → L1 extraction
    *
-   * This is a placeholder - the actual implementation would call the
-   * consolidation module (scanner + extractor + updater)
+   * Consolidates recent conversations into long-term memory
    */
   private async runDailyTask(): Promise<void> {
     console.log('\n🔄 [Daily Task] Running L0 → L1 extraction...')
@@ -185,16 +194,53 @@ export class LifecycleScheduler {
     }
 
     try {
-      // TODO: Call actual consolidation logic
-      // This would involve:
-      // 1. Scan daily/ for files older than 1 day
-      // 2. Extract facts using extractor.ts
-      // 3. Update long_term/*.md using updater.ts
-      // 4. Index long_term files using indexLongTermFiles()
+      // Import consolidation module dynamically
+      // Use relative path since we're in a monorepo
+      const { scanDailyLogs, extractWithClaudeCLI, deduplicateResults, updateLongTermMemory } =
+        await import('../../../mcp-server/dist/consolidation/index.js')
 
-      console.log('   ✅ Daily task completed (placeholder)')
+      // 1. Scan daily logs for recent conversations
+      console.log('   🔍 Scanning daily logs...')
+      const scanResult = await scanDailyLogs(this.config.storagePath, { days: 1 })
 
-      result.success = true
+      if (scanResult.conversations.length === 0) {
+        console.log('   ℹ️  No new conversations to consolidate')
+        result.success = true
+        result.stats = { conversationsProcessed: 0 }
+      } else {
+        console.log(`   📝 Found ${scanResult.conversations.length} conversations`)
+
+        // 2. Extract facts using Claude CLI
+        console.log('   🧠 Extracting facts with Claude CLI...')
+        const extracted = await extractWithClaudeCLI(scanResult.conversations, {
+          model: this.config.extractionModel,
+          verbose: false,
+        })
+
+        // 3. Deduplicate results
+        console.log('   🔀 Deduplicating results...')
+        const deduplicated = await deduplicateResults(extracted, this.config.storagePath)
+
+        // 4. Update long-term memory files
+        console.log('   💾 Updating long-term memory...')
+        const processedIds = scanResult.conversations.map((c: any) => c.id)
+        await updateLongTermMemory(this.config.storagePath, deduplicated, processedIds)
+
+        console.log(`   ✅ Extracted ${Object.keys(deduplicated).length} categories`)
+        result.success = true
+        result.stats = {
+          conversationsProcessed: scanResult.conversations.length,
+          categoriesExtracted: Object.keys(deduplicated).length,
+        }
+
+        // 5. Index long-term files if pipeline is available
+        if (this.config.indexingPipeline) {
+          console.log('   📊 Indexing long-term files...')
+          await this.config.indexingPipeline.indexLongTermFiles({ verbose: false })
+          console.log('   ✅ Indexing complete')
+        }
+      }
+
       this.stats.lastDailyRun = new Date()
     } catch (error) {
       console.error(`   ❌ Daily task failed: ${error}`)
@@ -217,8 +263,7 @@ export class LifecycleScheduler {
   /**
    * Run weekly task: L1 → L2 consolidation
    *
-   * This is a placeholder - the actual implementation would call
-   * consolidateSummaries from summary-consolidator.ts
+   * Consolidates Level 1 entries into Level 2 summaries
    */
   private async runWeeklyTask(): Promise<void> {
     console.log('\n🔄 [Weekly Task] Running L1 → L2 consolidation...')
@@ -230,15 +275,48 @@ export class LifecycleScheduler {
     }
 
     try {
-      // TODO: Call actual consolidation logic
-      // This would involve:
-      // 1. Check if consolidation is needed (shouldConsolidate)
-      // 2. Call consolidateSummaries()
-      // 3. Index the new summary files
+      // Import consolidation module dynamically
+      // Use relative path since we're in a monorepo
+      const { shouldConsolidate, consolidateSummaries } =
+        await import('../../../mcp-server/dist/consolidation/index.js')
 
-      console.log('   ✅ Weekly task completed (placeholder)')
+      // 1. Check if consolidation is needed
+      console.log('   🔍 Checking if consolidation is needed...')
+      const needsConsolidation = await shouldConsolidate(this.config.storagePath)
 
-      result.success = true
+      if (!needsConsolidation) {
+        console.log('   ℹ️  Consolidation not needed yet')
+        result.success = true
+        result.stats = { consolidated: false }
+      } else {
+        console.log('   🧠 Running consolidation...')
+
+        // 2. Run consolidation
+        const consolidationResult = await consolidateSummaries(this.config.storagePath, {
+          model: this.config.consolidationModel,
+          verbose: false,
+        })
+
+        console.log('   ✅ Consolidation complete')
+        console.log(`      - Profile: ${consolidationResult.stats.profileEntriesProcessed} entries`)
+        console.log(
+          `      - Knowledge: ${consolidationResult.stats.factsEntriesProcessed} facts, ${consolidationResult.stats.decisionsEntriesProcessed} decisions`
+        )
+
+        result.success = true
+        result.stats = {
+          consolidated: true,
+          ...consolidationResult.stats,
+        }
+
+        // 3. Index long-term files if pipeline is available
+        if (this.config.indexingPipeline) {
+          console.log('   📊 Indexing long-term files...')
+          await this.config.indexingPipeline.indexLongTermFiles({ verbose: false })
+          console.log('   ✅ Indexing complete')
+        }
+      }
+
       this.stats.lastWeeklyRun = new Date()
     } catch (error) {
       console.error(`   ❌ Weekly task failed: ${error}`)
@@ -273,9 +351,7 @@ export class LifecycleScheduler {
     }
 
     try {
-      const archiveManager = new ArchiveManager(this.config.storagePath)
-
-      const archiveStats = await archiveManager.archive({
+      const archiveStats = await this.archiveManager.archive({
         archiveDailyAfter: this.config.archiveDailyAfter,
         archiveLongTermAfter: this.config.archiveLongTermAfter,
         verbose: true,
