@@ -1,7 +1,7 @@
 {
   "name": "universal-memory-mcp",
   "version": "0.6.0-beta.0",
-  "description": "MCP Server for persistent AI memory across sessions",
+  "description": "Super personal assistant for any AI CLI - Universal, cross-project, 100% local | 超级个人助理 - 通用、跨项目、100%本地",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
