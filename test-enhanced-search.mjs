@@ -5,7 +5,7 @@
 import { EnhancedSearchEngine } from './packages/core/dist/index.js'
 import { VectorStore } from './packages/core/dist/index.js'
 import { createDefaultEmbeddingProvider } from './packages/core/dist/index.js'
-import { getDefaultConfig } from './packages/core/dist/index.js'
+import { loadConfig } from './packages/core/dist/index.js'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
@@ -16,7 +16,7 @@ async function testEnhancedSearch() {
     // Initialize components
     console.log('📦 Initializing components...')
     const provider = createDefaultEmbeddingProvider()
-    const config = getDefaultConfig()
+    const config = loadConfig()
 
     const storagePath = join(homedir(), '.ai_memory')
     const vectorStore = new VectorStore({

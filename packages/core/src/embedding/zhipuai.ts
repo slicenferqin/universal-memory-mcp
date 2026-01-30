@@ -14,6 +14,7 @@ export interface ZhipuAIConfig {
 interface ZhipuAIEmbeddingRequest {
   model: string
   input: string | string[]
+  dimensions?: number
 }
 
 interface ZhipuAIEmbeddingResponse {
@@ -72,6 +73,7 @@ export class ZhipuAIEmbeddingProvider {
     const requestBody: ZhipuAIEmbeddingRequest = {
       model: this.model,
       input: text,
+      dimensions: this.dimensions,
     }
 
     try {
@@ -108,6 +110,7 @@ export class ZhipuAIEmbeddingProvider {
     const requestBody: ZhipuAIEmbeddingRequest = {
       model: this.model,
       input: texts,
+      dimensions: this.dimensions,
     }
 
     try {
