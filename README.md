@@ -401,14 +401,15 @@ daily/*.md         →  long_term/*.md     →  *-summary.md
 
 ### 技术栈
 
-| 组件       | 技术选择              | 原因                            |
-| ---------- | --------------------- | ------------------------------- |
-| 存储层     | Markdown + JSON 文件  | 透明、可迁移、用户可控          |
-| 索引数据库 | **sqlite-vec**        | 单文件、无依赖、原生向量搜索    |
-| 全文搜索   | SQLite FTS5           | 内置、高效 BM25                 |
-| Embedding  | **Gemini** (免费优先) | 零成本、768维、速度快           |
-| Embedding  | OpenAI / Local (可选) | 生产环境 / 离线隐私             |
-| 整理引擎   | Claude Code CLI       | 复用用户订阅、无需额外 API 密钥 |
+| 组件       | 技术选择               | 原因                            |
+| ---------- | ---------------------- | ------------------------------- |
+| 存储层     | Markdown + JSON 文件   | 透明、可迁移、用户可控          |
+| 索引数据库 | **sqlite-vec**         | 单文件、无依赖、原生向量搜索    |
+| 全文搜索   | SQLite FTS5            | 内置、高效 BM25                 |
+| Embedding  | **ZhipuAI** (国内优先) | 国内可访问、1024维、速度快      |
+| Embedding  | Gemini (免费)          | 零成本、768维                   |
+| Embedding  | OpenAI (可选)          | 生产环境                        |
+| 整理引擎   | Claude Code CLI        | 复用用户订阅、无需额外 API 密钥 |
 
 ### 核心设计决策
 
@@ -478,31 +479,36 @@ universal-memory-mcp/
   - 使用 Claude Code CLI 作为 LLM 提取器
   - `universal-memory-consolidate` CLI 命令
 
-### 🚧 进行中 (v0.4.x - 向量搜索)
+### ✅ 已完成
 
-**目标**: 实现语义搜索,提升检索质量
+- **v0.4.0**: 语义搜索功能 ✨
+  - ✅ Embedding 基础设施
+    - ZhipuAI Embedding Provider (国内优选,1024维)
+    - Gemini Embedding Provider (免费,768维)
+    - OpenAI Embedding Provider (可选)
+    - 对话分块策略 (conversation-based, token-based)
+  - ✅ 向量索引
+    - 集成 sqlite-vec (单文件向量数据库)
+    - 批量索引 (IndexingPipeline)
+    - 自动索引 (新对话自动索引)
+  - ✅ 语义搜索
+    - 向量相似度搜索 (余弦相似度)
+    - 时间衰减权重 (指数衰减)
+    - 项目相关性加权 (1.5x/1.2x boost)
+  - ✅ 混合搜索
+    - 关键词 (FTS5) + 语义 (向量)
+    - RRF (Reciprocal Rank Fusion) 算法
+    - 可配置权重
+  - ✅ 性能优化
+    - EmbeddingCache (LRU + TTL)
+    - CachedEmbeddingProvider (100x speedup)
+    - SearchCache (结果缓存)
+  - ✅ 测试和文档
+    - 性能测试 (416 searches/sec)
+    - 召回质量测试 (40% average recall)
+    - 完整文档 (SEMANTIC_SEARCH_API.md, PERFORMANCE_TESTING.md)
 
-- [ ] **v0.4.0**: Embedding 基础设施
-  - Gemini Embedding Provider (免费)
-  - OpenAI Embedding Provider (可选)
-  - 分块策略 (对话级 chunking)
-
-- [ ] **v0.4.1**: 向量索引
-  - 集成 sqlite-vec
-  - 实时索引 (新对话自动索引)
-  - 批量索引 (历史数据处理)
-
-- [ ] **v0.4.2**: 语义搜索
-  - 向量相似度搜索
-  - 时间衰减权重
-  - 项目相关性加权
-
-- [ ] **v0.4.3**: 混合搜索
-  - 关键词 (FTS5) + 语义 (向量)
-  - RRF (Reciprocal Rank Fusion) 算法
-  - 可配置权重
-
-### 📋 计划中 (v0.5.x - 智能记忆)
+### 🚧 进行中 (v0.5.x - 智能记忆)
 
 **目标**: 优化记忆质量,实现智能化管理
 

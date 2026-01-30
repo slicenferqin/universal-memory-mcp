@@ -4,8 +4,8 @@
  * Tests the quality of semantic search results
  */
 
-import { VectorStore } from '../packages/core/dist/index.js'
-import { createDefaultEmbeddingProvider } from '../packages/core/dist/index.js'
+import { VectorStore } from './packages/core/dist/index.js'
+import { createDefaultEmbeddingProvider } from './packages/core/dist/index.js'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
