@@ -10,6 +10,7 @@
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
+import pRetry from 'p-retry'
 import { ArchiveManager } from '../archive.js'
 import type { IndexingPipeline } from '../vectorstore/pipeline.js'
 
@@ -187,7 +188,7 @@ export class LifecycleScheduler {
    * 2. Consolidate L1 → L2 (knowledge-summary, profile-summary)
    * 3. Vectorize everything for search
    */
-  private async runDailyTask(): Promise<void> {
+  private async runDailyTask(): Promise<ScheduleResult> {
     console.log('\n🔄 [Daily Task] Running daily memory integration...')
 
     const result: ScheduleResult = {
@@ -220,12 +221,27 @@ export class LifecycleScheduler {
       if (scanResult.conversations.length > 0) {
         console.log(`   📝 Found ${scanResult.conversations.length} conversations`)
 
-        // Extract facts using Claude CLI
+        // Extract facts using Claude CLI (with retry)
         console.log('   🧠 [L0→L1] Extracting facts with Claude CLI...')
-        const extracted = await extractWithClaudeCLI(scanResult.conversations, {
-          model: this.config.extractionModel || 'haiku',
-          verbose: false,
-        })
+        const extracted = await pRetry(
+          async () => {
+            return await extractWithClaudeCLI(scanResult.conversations, {
+              model: this.config.extractionModel || 'haiku',
+              verbose: false,
+            })
+          },
+          {
+            retries: 3,
+            onFailedAttempt: (error) => {
+              console.warn(
+                `   ⚠️  [L0→L1] Extraction attempt ${error.attemptNumber} failed. Retrying...`
+              )
+              if (error.attemptNumber === 3) {
+                console.error(`   ❌ [L0→L1] Extraction failed after 3 retries`)
+              }
+            },
+          }
+        )
 
         // Deduplicate results
         console.log('   🔀 [L0→L1] Deduplicating results...')
@@ -249,10 +265,25 @@ export class LifecycleScheduler {
 
       if (needsConsolidation) {
         console.log('   📚 [L1→L2] Running consolidation...')
-        const consolidationResult = await consolidateSummaries(this.config.storagePath, {
-          model: this.config.consolidationModel || 'sonnet',
-          verbose: false,
-        })
+        const consolidationResult = await pRetry(
+          async () => {
+            return await consolidateSummaries(this.config.storagePath, {
+              model: this.config.consolidationModel || 'sonnet',
+              verbose: false,
+            })
+          },
+          {
+            retries: 3,
+            onFailedAttempt: (error) => {
+              console.warn(
+                `   ⚠️  [L1→L2] Consolidation attempt ${error.attemptNumber} failed. Retrying...`
+              )
+              if (error.attemptNumber === 3) {
+                console.error(`   ❌ [L1→L2] Consolidation failed after 3 retries`)
+              }
+            },
+          }
+        )
 
         console.log(`      ✅ L2 summaries updated`)
         console.log(
@@ -295,6 +326,8 @@ export class LifecycleScheduler {
 
     // Schedule next run
     this.scheduleDaily()
+
+    return result
   }
 
   /**
@@ -305,7 +338,7 @@ export class LifecycleScheduler {
    * - Cleanup: Remove outdated/duplicate entries
    * - Report: Generate weekly summary
    */
-  private async runWeeklyTask(): Promise<void> {
+  private async runWeeklyTask(): Promise<ScheduleResult> {
     console.log('\n🔄 [Weekly Task] Running deep optimization...')
 
     const result: ScheduleResult = {
@@ -366,6 +399,8 @@ export class LifecycleScheduler {
 
     // Schedule next run
     this.scheduleWeekly()
+
+    return result
   }
 
   /**
@@ -373,7 +408,7 @@ export class LifecycleScheduler {
    *
    * Moves old files to archive/ directory for cold storage
    */
-  private async runMonthlyTask(): Promise<void> {
+  private async runMonthlyTask(): Promise<ScheduleResult> {
     console.log('\n🔄 [Monthly Task] Running archival...')
 
     const result: ScheduleResult = {
@@ -412,6 +447,8 @@ export class LifecycleScheduler {
 
     // Schedule next run
     this.scheduleMonthly()
+
+    return result
   }
 
   /**
@@ -431,17 +468,14 @@ export class LifecycleScheduler {
   /**
    * Run a task manually (for testing)
    */
-  async runTaskManually(type: 'daily' | 'weekly' | 'monthly'): Promise<void> {
+  async runTaskManually(type: 'daily' | 'weekly' | 'monthly'): Promise<ScheduleResult> {
     switch (type) {
       case 'daily':
-        await this.runDailyTask()
-        break
+        return await this.runDailyTask()
       case 'weekly':
-        await this.runWeeklyTask()
-        break
+        return await this.runWeeklyTask()
       case 'monthly':
-        await this.runMonthlyTask()
-        break
+        return await this.runMonthlyTask()
     }
   }
 }
