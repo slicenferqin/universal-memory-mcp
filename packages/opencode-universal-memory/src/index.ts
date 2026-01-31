@@ -111,6 +111,30 @@ async function recordViaUniversalMemory(payload: AnyRecord, cwd: string) {
   }
 }
 
+async function retrieveSessionContext(cwd: string, projectName: string): Promise<string | null> {
+  process.stderr.write(`[UniversalMemory] Retrieving session context for project: ${projectName}\n`)
+
+  const args = ['--json']
+  if (projectName) {
+    args.push('--project', projectName)
+  }
+
+  const res = await runCommand('universal-memory-retrieve', args, '', cwd)
+  if (res.code === 0) {
+    try {
+      const context = JSON.parse(res.stdout)
+      process.stderr.write(
+        `[UniversalMemory] Retrieved context: profile=${!!context.userProfile}, projectRecent=${context.projectRecent?.length || 0}, globalRecent=${context.globalRecent?.length || 0}\n`
+      )
+      return res.stdout
+    } catch (error) {
+      process.stderr.write(`[UniversalMemory] Failed to parse retrieve output: ${error}\n`)
+    }
+  }
+
+  return null
+}
+
 async function fetchLastExchange(client: AnyRecord, sessionId: string) {
   process.stderr.write(`[UniversalMemory] Fetching messages for session: ${sessionId}\n`)
 
@@ -236,6 +260,14 @@ export default async function UniversalMemoryPlugin(ctx: AnyRecord) {
             if (!res.ok) {
               process.stderr.write(`opencode-universal-memory warning: ${res.error}\n`)
             }
+          } else if (event.type === 'session.created') {
+            // Session created - retrieve and log context
+            process.stderr.write(`[UniversalMemory] Session created: ${sessionId}\n`)
+            const context = await retrieveSessionContext(directory || process.cwd(), projectName)
+            if (context) {
+              process.stderr.write(`[UniversalMemory] Session context retrieved and available\n`)
+            }
+            // Note: SessionStart hook will also handle context injection independently
           } else if (event.type === 'session.updated' || event.type === 'session.diff') {
             // Track when session is updated or diffed to avoid duplicate recording
           }

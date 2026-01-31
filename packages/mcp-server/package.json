@@ -9,7 +9,8 @@
     "universal-memory-mcp": "./dist/index.js",
     "universal-memory-record": "./dist/record.js",
     "universal-memory-consolidate": "./dist/consolidate.js",
-    "universal-memory-cron": "./dist/cron.js"
+    "universal-memory-cron": "./dist/cron.js",
+    "universal-memory-retrieve": "./dist/retrieve.js"
   },
   "exports": {
     ".": {

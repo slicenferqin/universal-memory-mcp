@@ -8,14 +8,14 @@
  * 2. Memory assistant skill
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json');
-const CLAUDE_SKILLS_PATH = path.join(CLAUDE_DIR, 'skills');
-const CLAUDE_HOOKS_PATH = path.join(CLAUDE_DIR, 'hooks');
+const CLAUDE_DIR = path.join(os.homedir(), '.claude')
+const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json')
+const CLAUDE_SKILLS_PATH = path.join(CLAUDE_DIR, 'skills')
+const CLAUDE_HOOKS_PATH = path.join(CLAUDE_DIR, 'hooks')
 
 // MCP server configuration
 const MCP_CONFIG = {
@@ -23,7 +23,7 @@ const MCP_CONFIG = {
     command: 'npx',
     args: ['-y', 'universal-memory-mcp'],
   },
-};
+}
 
 // Skill content
 const SKILL_CONTENT = `---
@@ -155,21 +155,21 @@ memory_update_long_term({
 - Memory tools are provided by universal-memory MCP server
 - Always summarize, don't record full text
 - Use project name when in project context
-`;
+`
 
 /**
  * Check if Claude Code is installed
  */
 function checkClaudeCodeInstalled() {
   if (!fs.existsSync(CLAUDE_DIR)) {
-    console.log('\n⚠️  Claude Code not detected!\n');
-    console.log('Please install Claude Code first:');
-    console.log('  https://code.claude.com/\n');
-    console.log('After installing Claude Code, run:');
-    console.log('  npm install -g universal-memory-mcp\n');
-    return false;
+    console.log('\n⚠️  Claude Code not detected!\n')
+    console.log('Please install Claude Code first:')
+    console.log('  https://code.claude.com/\n')
+    console.log('After installing Claude Code, run:')
+    console.log('  npm install -g universal-memory-mcp\n')
+    return false
   }
-  return true;
+  return true
 }
 
 /**
@@ -178,212 +178,217 @@ function checkClaudeCodeInstalled() {
 function readJsonFile(filePath) {
   try {
     if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      return JSON.parse(content);
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return JSON.parse(content)
     }
   } catch (error) {
-    console.error(`Warning: Could not read ${filePath}:`, error.message);
+    console.error(`Warning: Could not read ${filePath}:`, error.message)
   }
-  return null;
+  return null
 }
 
 /**
  * Write JSON file with backup
  */
 function writeJsonFile(filePath, data) {
-  const dir = path.dirname(filePath);
+  const dir = path.dirname(filePath)
 
   // Create directory if not exists
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true })
   }
 
   // Backup existing file
   if (fs.existsSync(filePath)) {
-    const backupPath = `${filePath}.backup.${Date.now()}`;
-    fs.copyFileSync(filePath, backupPath);
-    console.log(`  Backed up existing config to: ${backupPath}`);
+    const backupPath = `${filePath}.backup.${Date.now()}`
+    fs.copyFileSync(filePath, backupPath)
+    console.log(`  Backed up existing config to: ${backupPath}`)
   }
 
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
 }
 
 /**
  * Configure MCP server in Claude settings
  */
 function configureMcpServer() {
-  console.log('\n📦 Configuring MCP server...');
+  console.log('\n📦 Configuring MCP server...')
 
-  let settings = readJsonFile(CLAUDE_SETTINGS_PATH) || {};
+  let settings = readJsonFile(CLAUDE_SETTINGS_PATH) || {}
 
   // Initialize mcpServers if not exists
   if (!settings.mcpServers) {
-    settings.mcpServers = {};
+    settings.mcpServers = {}
   }
 
   // Check if already configured
   if (settings.mcpServers['universal-memory']) {
-    console.log('  MCP server already configured');
-    return false;
+    console.log('  MCP server already configured')
+    return false
   }
 
   // Add MCP configuration
   settings.mcpServers = {
     ...settings.mcpServers,
     ...MCP_CONFIG,
-  };
+  }
 
-  writeJsonFile(CLAUDE_SETTINGS_PATH, settings);
-  console.log('  MCP server configured successfully');
-  return true;
+  writeJsonFile(CLAUDE_SETTINGS_PATH, settings)
+  console.log('  MCP server configured successfully')
+  return true
 }
 
 /**
  * Install memory assistant skill
  */
 function installSkill() {
-  console.log('\n🎯 Installing memory-assistant skill...');
+  console.log('\n🎯 Installing memory-assistant skill...')
 
-  const skillDir = path.join(CLAUDE_SKILLS_PATH, 'memory-assistant');
-  const skillFile = path.join(skillDir, 'SKILL.md');
+  const skillDir = path.join(CLAUDE_SKILLS_PATH, 'memory-assistant')
+  const skillFile = path.join(skillDir, 'SKILL.md')
 
   // Create skills directory if not exists
   if (!fs.existsSync(skillDir)) {
-    fs.mkdirSync(skillDir, { recursive: true });
+    fs.mkdirSync(skillDir, { recursive: true })
   }
 
   // Check if skill already exists
   if (fs.existsSync(skillFile)) {
-    const existingContent = fs.readFileSync(skillFile, 'utf-8');
+    const existingContent = fs.readFileSync(skillFile, 'utf-8')
     if (existingContent === SKILL_CONTENT) {
-      console.log('  Skill already installed (same version)');
-      return false;
+      console.log('  Skill already installed (same version)')
+      return false
     }
     // Backup existing skill
-    const backupPath = `${skillFile}.backup.${Date.now()}`;
-    fs.copyFileSync(skillFile, backupPath);
-    console.log(`  Backed up existing skill to: ${backupPath}`);
+    const backupPath = `${skillFile}.backup.${Date.now()}`
+    fs.copyFileSync(skillFile, backupPath)
+    console.log(`  Backed up existing skill to: ${backupPath}`)
   }
 
-  fs.writeFileSync(skillFile, SKILL_CONTENT);
-  console.log('  Skill installed successfully');
-  return true;
+  fs.writeFileSync(skillFile, SKILL_CONTENT)
+  console.log('  Skill installed successfully')
+  return true
 }
 
 /**
  * Install Stop hook script
  */
 function installStopHook() {
-  console.log('\n🪝 Installing Stop hook...');
+  console.log('\n🪝 Installing Stop hook...')
 
-  const hookScriptPath = path.join(CLAUDE_HOOKS_PATH, 'universal-memory-stop-hook.mjs');
+  const hookScriptPath = path.join(CLAUDE_HOOKS_PATH, 'universal-memory-stop-hook.mjs')
 
   // Create hooks directory if not exists
   if (!fs.existsSync(CLAUDE_HOOKS_PATH)) {
-    fs.mkdirSync(CLAUDE_HOOKS_PATH, { recursive: true });
-    console.log('  Created hooks directory');
+    fs.mkdirSync(CLAUDE_HOOKS_PATH, { recursive: true })
+    console.log('  Created hooks directory')
   }
 
   // Get source script path (in the same directory as this postinstall script)
-  const sourceScript = new URL('universal-memory-stop-hook.mjs', import.meta.url).pathname;
+  const sourceScript = new URL('universal-memory-stop-hook.mjs', import.meta.url).pathname
 
   // Check if hook already exists
   if (fs.existsSync(hookScriptPath)) {
-    const existingContent = fs.readFileSync(hookScriptPath, 'utf-8');
-    const newContent = fs.readFileSync(sourceScript, 'utf-8');
+    const existingContent = fs.readFileSync(hookScriptPath, 'utf-8')
+    const newContent = fs.readFileSync(sourceScript, 'utf-8')
 
     if (existingContent === newContent) {
-      console.log('  Stop hook already installed (same version)');
-      return false;
+      console.log('  Stop hook already installed (same version)')
+      return false
     }
 
     // Backup existing hook
-    const backupPath = `${hookScriptPath}.backup.${Date.now()}`;
-    fs.copyFileSync(hookScriptPath, backupPath);
-    console.log(`  Backed up existing hook to: ${backupPath}`);
+    const backupPath = `${hookScriptPath}.backup.${Date.now()}`
+    fs.copyFileSync(hookScriptPath, backupPath)
+    console.log(`  Backed up existing hook to: ${backupPath}`)
   }
 
-  fs.copyFileSync(sourceScript, hookScriptPath);
-  fs.chmodSync(hookScriptPath, 0o755); // Make executable
-  console.log('  Stop hook installed successfully');
-  return true;
+  fs.copyFileSync(sourceScript, hookScriptPath)
+  fs.chmodSync(hookScriptPath, 0o755) // Make executable
+  console.log('  Stop hook installed successfully')
+  return true
 }
 
 /**
  * Install SessionStart hook script
  */
 function installStartHook() {
-  console.log('\n🚀 Installing SessionStart hook...');
+  console.log('\n🚀 Installing SessionStart hook...')
 
-  const hookScriptPath = path.join(CLAUDE_HOOKS_PATH, 'universal-memory-start-hook.mjs');
+  const hookScriptPath = path.join(CLAUDE_HOOKS_PATH, 'universal-memory-start-hook.mjs')
 
   // Create hooks directory if not exists
   if (!fs.existsSync(CLAUDE_HOOKS_PATH)) {
-    fs.mkdirSync(CLAUDE_HOOKS_PATH, { recursive: true });
-    console.log('  Created hooks directory');
+    fs.mkdirSync(CLAUDE_HOOKS_PATH, { recursive: true })
+    console.log('  Created hooks directory')
   }
 
   // Get source script path (in the same directory as this postinstall script)
-  const sourceScript = new URL('universal-memory-start-hook.mjs', import.meta.url).pathname;
+  const sourceScript = new URL('universal-memory-start-hook.mjs', import.meta.url).pathname
 
   // Check if source exists
   if (!fs.existsSync(sourceScript)) {
-    console.log('  Start hook source not found, skipping');
-    return false;
+    console.log('  Start hook source not found, skipping')
+    return false
   }
 
   // Check if hook already exists
   if (fs.existsSync(hookScriptPath)) {
-    const existingContent = fs.readFileSync(hookScriptPath, 'utf-8');
-    const newContent = fs.readFileSync(sourceScript, 'utf-8');
+    const existingContent = fs.readFileSync(hookScriptPath, 'utf-8')
+    const newContent = fs.readFileSync(sourceScript, 'utf-8')
 
     if (existingContent === newContent) {
-      console.log('  Start hook already installed (same version)');
-      return false;
+      console.log('  Start hook already installed (same version)')
+      return false
     }
 
     // Backup existing hook
-    const backupPath = `${hookScriptPath}.backup.${Date.now()}`;
-    fs.copyFileSync(hookScriptPath, backupPath);
-    console.log(`  Backed up existing hook to: ${backupPath}`);
+    const backupPath = `${hookScriptPath}.backup.${Date.now()}`
+    fs.copyFileSync(hookScriptPath, backupPath)
+    console.log(`  Backed up existing hook to: ${backupPath}`)
   }
 
-  fs.copyFileSync(sourceScript, hookScriptPath);
-  fs.chmodSync(hookScriptPath, 0o755); // Make executable
-  console.log('  Start hook installed successfully');
-  return true;
+  fs.copyFileSync(sourceScript, hookScriptPath)
+  fs.chmodSync(hookScriptPath, 0o755) // Make executable
+  console.log('  Start hook installed successfully')
+  return true
 }
 
 /**
  * Configure Stop hook in Claude settings
  */
 function configureStopHook() {
-  console.log('\n⚙️  Configuring Stop hook...');
+  console.log('\n⚙️  Configuring Stop hook...')
 
-  let settings = readJsonFile(CLAUDE_SETTINGS_PATH) || {};
+  let settings = readJsonFile(CLAUDE_SETTINGS_PATH) || {}
 
   // Initialize hooks if not exists
   if (!settings.hooks) {
-    settings.hooks = {};
+    settings.hooks = {}
   }
 
   // Initialize Stop hook array if not exists
   if (!settings.hooks.Stop) {
-    settings.hooks.Stop = [];
+    settings.hooks.Stop = []
   }
 
   // Check if our hook is already configured
-  const hookScriptPath = path.join(os.homedir(), '.claude', 'hooks', 'universal-memory-stop-hook.mjs');
-  const hookCommand = `node ${hookScriptPath}`;
-  const alreadyConfigured = settings.hooks.Stop.some(entry =>
-    entry.hooks?.some(hook =>
-      hook.type === 'command' && hook.command.includes('universal-memory-stop-hook')
+  const hookScriptPath = path.join(
+    os.homedir(),
+    '.claude',
+    'hooks',
+    'universal-memory-stop-hook.mjs'
+  )
+  const hookCommand = `node ${hookScriptPath}`
+  const alreadyConfigured = settings.hooks.Stop.some((entry) =>
+    entry.hooks?.some(
+      (hook) => hook.type === 'command' && hook.command.includes('universal-memory-stop-hook')
     )
-  );
+  )
 
   if (alreadyConfigured) {
-    console.log('  Stop hook already configured');
-    return false;
+    console.log('  Stop hook already configured')
+    return false
   }
 
   // Add Stop hook configuration
@@ -391,46 +396,89 @@ function configureStopHook() {
     hooks: [
       {
         type: 'command',
-        command: hookCommand
-      }
-    ]
-  });
+        command: hookCommand,
+      },
+    ],
+  })
 
-  writeJsonFile(CLAUDE_SETTINGS_PATH, settings);
-  console.log('  Stop hook configured successfully');
-  return true;
+  writeJsonFile(CLAUDE_SETTINGS_PATH, settings)
+  console.log('  Stop hook configured successfully')
+  return true
+}
+
+/**
+ * Install cron job for daily memory consolidation
+ */
+function installCronJob() {
+  console.log('\n⏰ Installing daily memory consolidation cron job...')
+
+  const { execSync } = require('node:child_process')
+
+  try {
+    // Run universal-memory-cron install
+    const result = execSync('universal-memory-cron install', {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    })
+
+    console.log('  Cron job installed successfully')
+    console.log(`  Output: ${result.trim()}`)
+    return true
+  } catch (error) {
+    // Try with npx
+    try {
+      const result = execSync('npx -y universal-memory-mcp universal-memory-cron install', {
+        encoding: 'utf8',
+        stdio: 'pipe',
+      })
+
+      console.log('  Cron job installed successfully (via npx)')
+      console.log(`  Output: ${result.trim()}`)
+      return true
+    } catch (npxError) {
+      console.log('  ⚠️  Cron job installation failed (this is optional)')
+      console.log(`     Error: ${npxError.message}`)
+      console.log('     You can manually install later: universal-memory-cron install')
+      return false
+    }
+  }
 }
 
 /**
  * Configure SessionStart hook in Claude settings
  */
 function configureStartHook() {
-  console.log('\n⚙️  Configuring SessionStart hook...');
+  console.log('\n⚙️  Configuring SessionStart hook...')
 
-  let settings = readJsonFile(CLAUDE_SETTINGS_PATH) || {};
+  let settings = readJsonFile(CLAUDE_SETTINGS_PATH) || {}
 
   // Initialize hooks if not exists
   if (!settings.hooks) {
-    settings.hooks = {};
+    settings.hooks = {}
   }
 
   // Initialize SessionStart hook array if not exists
   if (!settings.hooks.SessionStart) {
-    settings.hooks.SessionStart = [];
+    settings.hooks.SessionStart = []
   }
 
   // Check if our hook is already configured
-  const hookScriptPath = path.join(os.homedir(), '.claude', 'hooks', 'universal-memory-start-hook.mjs');
-  const hookCommand = `node ${hookScriptPath}`;
-  const alreadyConfigured = settings.hooks.SessionStart.some(entry =>
-    entry.hooks?.some(hook =>
-      hook.type === 'command' && hook.command.includes('universal-memory-start-hook')
+  const hookScriptPath = path.join(
+    os.homedir(),
+    '.claude',
+    'hooks',
+    'universal-memory-start-hook.mjs'
+  )
+  const hookCommand = `node ${hookScriptPath}`
+  const alreadyConfigured = settings.hooks.SessionStart.some((entry) =>
+    entry.hooks?.some(
+      (hook) => hook.type === 'command' && hook.command.includes('universal-memory-start-hook')
     )
-  );
+  )
 
   if (alreadyConfigured) {
-    console.log('  SessionStart hook already configured');
-    return false;
+    console.log('  SessionStart hook already configured')
+    return false
   }
 
   // Add SessionStart hook configuration
@@ -438,89 +486,94 @@ function configureStartHook() {
     hooks: [
       {
         type: 'command',
-        command: hookCommand
-      }
-    ]
-  });
+        command: hookCommand,
+      },
+    ],
+  })
 
-  writeJsonFile(CLAUDE_SETTINGS_PATH, settings);
-  console.log('  SessionStart hook configured successfully');
-  return true;
+  writeJsonFile(CLAUDE_SETTINGS_PATH, settings)
+  console.log('  SessionStart hook configured successfully')
+  return true
 }
 
 /**
  * Main installation
  */
 function main() {
-  console.log('╔════════════════════════════════════════════════════════════╗');
-  console.log('║         Universal Memory MCP - Setup                       ║');
-  console.log('╚════════════════════════════════════════════════════════════╝');
+  console.log('╔════════════════════════════════════════════════════════════╗')
+  console.log('║         Universal Memory MCP - Setup                       ║')
+  console.log('╚════════════════════════════════════════════════════════════╝')
 
   // Check Claude Code installation
   if (!checkClaudeCodeInstalled()) {
-    process.exit(0);
+    process.exit(0)
   }
 
-  let needsRestart = false;
+  let needsRestart = false
 
   try {
     // 1. Configure MCP server
-    const mcpConfigured = configureMcpServer();
-    if (mcpConfigured) needsRestart = true;
+    const mcpConfigured = configureMcpServer()
+    if (mcpConfigured) needsRestart = true
 
     // 2. Install skill
-    const skillInstalled = installSkill();
-    if (skillInstalled) needsRestart = true;
+    const skillInstalled = installSkill()
+    if (skillInstalled) needsRestart = true
 
     // 3. Install Stop hook script
-    const stopHookInstalled = installStopHook();
-    if (stopHookInstalled) needsRestart = true;
+    const stopHookInstalled = installStopHook()
+    if (stopHookInstalled) needsRestart = true
 
     // 4. Configure Stop hook
-    const stopHookConfigured = configureStopHook();
-    if (stopHookConfigured) needsRestart = true;
+    const stopHookConfigured = configureStopHook()
+    if (stopHookConfigured) needsRestart = true
 
     // 5. Install SessionStart hook script
-    const startHookInstalled = installStartHook();
-    if (startHookInstalled) needsRestart = true;
+    const startHookInstalled = installStartHook()
+    if (startHookInstalled) needsRestart = true
 
     // 6. Configure SessionStart hook
-    const startHookConfigured = configureStartHook();
-    if (startHookConfigured) needsRestart = true;
+    const startHookConfigured = configureStartHook()
+    if (startHookConfigured) needsRestart = true
+
+    // 7. Install cron job
+    const cronInstalled = installCronJob()
+    if (cronInstalled) needsRestart = true
 
     // Summary
-    console.log('\n' + '═'.repeat(60));
+    console.log('\n' + '═'.repeat(60))
 
     if (needsRestart) {
-      console.log('\n✅ Setup complete!\n');
-      console.log('⚠️  IMPORTANT: Please restart Claude Code to enable all features.\n');
-      console.log('After restart, Claude will automatically:');
-      console.log('  • Recall your profile at session start (via SessionStart hook)');
-      console.log('  • Search past conversations when you reference them');
-      console.log('  • Record EVERY conversation automatically (via Stop hook)');
-      console.log('  • Remember your preferences and decisions\n');
+      console.log('\n✅ Setup complete!\n')
+      console.log('⚠️  IMPORTANT: Please restart Claude Code to enable all features.\n')
+      console.log('After restart, Claude will automatically:')
+      console.log('  • Recall your profile at session start (via SessionStart hook)')
+      console.log('  • Search past conversations when you reference them')
+      console.log('  • Record EVERY conversation automatically (via Stop hook)')
+      console.log('  • Remember your preferences and decisions\n')
     } else {
-      console.log('\n✅ Already configured! No changes needed.\n');
+      console.log('\n✅ Already configured! No changes needed.\n')
     }
 
-    console.log('📁 Configuration locations:');
-    console.log(`   MCP config: ${CLAUDE_SETTINGS_PATH}`);
-    console.log(`   Skill: ${path.join(CLAUDE_SKILLS_PATH, 'memory-assistant', 'SKILL.md')}`);
-    console.log(`   Stop hook: ${path.join(CLAUDE_HOOKS_PATH, 'universal-memory-stop-hook.mjs')}`);
-    console.log(`   Start hook: ${path.join(CLAUDE_HOOKS_PATH, 'universal-memory-start-hook.mjs')}`);
-    console.log(`   Memory storage: ${path.join(os.homedir(), '.ai_memory')}\n`);
+    console.log('📁 Configuration locations:')
+    console.log(`   MCP config: ${CLAUDE_SETTINGS_PATH}`)
+    console.log(`   Skill: ${path.join(CLAUDE_SKILLS_PATH, 'memory-assistant', 'SKILL.md')}`)
+    console.log(`   Stop hook: ${path.join(CLAUDE_HOOKS_PATH, 'universal-memory-stop-hook.mjs')}`)
+    console.log(`   Start hook: ${path.join(CLAUDE_HOOKS_PATH, 'universal-memory-start-hook.mjs')}`)
+    console.log(`   Memory storage: ${path.join(os.homedir(), '.ai_memory')}\n`)
 
-    console.log('💡 可选：设置自动整理长期记忆');
-    console.log('   # 手动整理最近 7 天的对话');
-    console.log('   universal-memory-consolidate --days 7\n');
-    console.log('   # 完整整理（包含二次整合）');
-    console.log('   universal-memory-consolidate --days 7 --consolidate-summary\n');
-
+    console.log('⏰ Cron job: Daily memory consolidation at 2:00 AM')
+    console.log('   # Check cron job:')
+    console.log('   crontab -l | grep universal-memory\n')
+    console.log('   # Manual consolidation:')
+    console.log('   universal-memory-consolidate --days 7\n')
+    console.log('   # Full consolidation (with re-consolidation):')
+    console.log('   universal-memory-consolidate --days 7 --consolidate-summary\n')
   } catch (error) {
-    console.error('\n❌ Setup failed:', error.message);
-    console.error('\nPlease configure manually. See README for instructions.');
-    process.exit(1);
+    console.error('\n❌ Setup failed:', error.message)
+    console.error('\nPlease configure manually. See README for instructions.')
+    process.exit(1)
   }
 }
 
-main();
+main()

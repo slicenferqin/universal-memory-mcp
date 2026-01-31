@@ -3,134 +3,235 @@
 /**
  * Universal Memory - SessionStart Hook
  *
- * 在会话开始时召回用户画像，注入到会话上下文中。
+ * 在会话开始时召回用户画像和项目相关讨论，注入到会话上下文中。
  *
  * 功能：
- * 1. 读取 profile-summary.md（Level 2 整合摘要）
- * 2. 如果不存在，回退到 profile.md（Level 1 原始条目）
- * 3. 输出用户画像到 stdout，Claude Code 会将其作为系统上下文
+ * 1. 调用 universal-memory-retrieve 命令
+ * 2. 检测当前项目
+ * 3. 输出用户画像和项目讨论到 stdout
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
+import fs from 'node:fs'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 // Enable debug logging via environment variable
-const DEBUG = process.env.UNIVERSAL_MEMORY_DEBUG === '1';
+const DEBUG = process.env.UNIVERSAL_MEMORY_DEBUG === '1'
 
 function debugLog(message) {
   if (DEBUG) {
-    fs.appendFileSync('/tmp/universal-memory-start-hook.log', `[${new Date().toISOString()}] ${message}\n`);
+    fs.appendFileSync(
+      '/tmp/universal-memory-start-hook.log',
+      `[${new Date().toISOString()}] ${message}\n`
+    )
   }
 }
 
-function getMemoryPath() {
-  return process.env.MEMORY_PATH || path.join(os.homedir(), '.ai_memory');
+function findRetrieveScript() {
+  try {
+    const scriptDir = path.dirname(new URL(import.meta.url).pathname)
+    const retrievePath = path.join(scriptDir, '..', 'dist', 'retrieve.js')
+    if (fs.existsSync(retrievePath)) {
+      return retrievePath
+    }
+  } catch (err) {
+    debugLog(`Failed to find retrieve script: ${err.message}`)
+  }
+  return null
 }
 
-function readProfileSummary() {
-  const memoryPath = getMemoryPath();
-  const longTermDir = path.join(memoryPath, 'long_term');
+function runRetrieveCommand(cwd, projectName) {
+  const args = ['--json']
 
-  // 优先读取 Level 2 整合摘要
-  const summaryPath = path.join(longTermDir, 'profile-summary.md');
-  if (fs.existsSync(summaryPath)) {
-    debugLog(`Reading profile summary from: ${summaryPath}`);
-    const content = fs.readFileSync(summaryPath, 'utf-8');
-    return { source: 'profile-summary.md', content };
+  if (projectName) {
+    args.push('--project', projectName)
   }
 
-  // 回退到 Level 1 原始条目
-  const profilePath = path.join(longTermDir, 'profile.md');
-  if (fs.existsSync(profilePath)) {
-    debugLog(`Reading profile from: ${profilePath}`);
-    const content = fs.readFileSync(profilePath, 'utf-8');
-    return { source: 'profile.md', content };
+  debugLog(`Running: universal-memory-retrieve ${args.join(' ')}`)
+
+  // Try direct command first
+  const direct = spawnSync('universal-memory-retrieve', args, {
+    encoding: 'utf8',
+    cwd,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+
+  if (direct.status === 0) {
+    return { ok: true, output: direct.stdout }
   }
 
-  debugLog('No profile found');
-  return null;
+  debugLog(`Direct command failed: ${direct.stderr}`)
+
+  // Try npx
+  const npx = spawnSync(
+    'npx',
+    ['-y', '--package', 'universal-memory-mcp', 'universal-memory-retrieve', ...args],
+    {
+      encoding: 'utf8',
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }
+  )
+
+  if (npx.status === 0) {
+    return { ok: true, output: npx.stdout }
+  }
+
+  debugLog(`NPX command failed: ${npx.stderr}`)
+
+  // Try local fallback
+  const fallbackPath = findRetrieveScript()
+  if (fallbackPath) {
+    debugLog(`Using local retrieve script: ${fallbackPath}`)
+    const fallback = spawnSync('node', [fallbackPath, ...args], {
+      encoding: 'utf8',
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    if (fallback.status === 0) {
+      return { ok: true, output: fallback.stdout }
+    }
+    debugLog(`Fallback script failed: ${fallback.stderr}`)
+  }
+
+  return {
+    ok: false,
+    error: direct.stderr || npx.stderr || 'retrieve command not available',
+  }
 }
 
-function readKnowledgeSummary() {
-  const memoryPath = getMemoryPath();
-  const longTermDir = path.join(memoryPath, 'long_term');
+function detectProjectName(cwd) {
+  try {
+    // Try git remote
+    const gitRemote = spawnSync('git', ['remote', '-v'], {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf8',
+    })
+    if (gitRemote.status === 0) {
+      const output = gitRemote.stdout
+      const match = output.match(/[:/]([^/]+\/[^/]+)\.git/)
+      if (match) {
+        const projectName = match[1].replace('/', '-')
+        debugLog(`Detected project from git: ${projectName}`)
+        return projectName
+      }
+    }
 
-  const summaryPath = path.join(longTermDir, 'knowledge-summary.md');
-  if (fs.existsSync(summaryPath)) {
-    debugLog(`Reading knowledge summary from: ${summaryPath}`);
-    const content = fs.readFileSync(summaryPath, 'utf-8');
-    return { source: 'knowledge-summary.md', content };
+    // Try package.json
+    const packagePath = path.join(cwd, 'package.json')
+    if (fs.existsSync(packagePath)) {
+      const content = fs.readFileSync(packagePath, 'utf8')
+      const pkg = JSON.parse(content)
+      if (pkg.name) {
+        debugLog(`Detected project from package.json: ${pkg.name}`)
+        return pkg.name
+      }
+    }
+  } catch (err) {
+    debugLog(`Failed to detect project: ${err.message}`)
   }
 
-  return null;
+  debugLog('No project detected')
+  return undefined
 }
 
-function formatOutput(profile, knowledge) {
-  const parts = [];
+function formatOutput(context) {
+  const parts = []
 
-  parts.push('<user-memory>');
-  parts.push('以下是从长期记忆中召回的用户信息，请在对话中参考：');
-  parts.push('');
+  parts.push('<user-memory>')
+  parts.push('以下是从长期记忆中召回的用户信息，请在对话中参考：')
+  parts.push('')
 
-  if (profile) {
-    parts.push(`<!-- Source: ${profile.source} -->`);
-    parts.push(profile.content);
-    parts.push('');
+  // User profile
+  if (context.userProfile) {
+    parts.push('## 用户画像')
+    parts.push(context.userProfile)
+    parts.push('')
   }
 
-  // 知识库摘要可能太长，只包含前 2000 字符
-  if (knowledge) {
-    const truncated = knowledge.content.length > 2000
-      ? knowledge.content.substring(0, 2000) + '\n\n[... 更多内容请使用 memory_search 查询]'
-      : knowledge.content;
-    parts.push(`<!-- Source: ${knowledge.source} -->`);
-    parts.push(truncated);
-    parts.push('');
+  // Project recent discussions
+  if (context.projectRecent && context.projectRecent.length > 0) {
+    parts.push(`## 项目最近讨论 (${context.currentProject || 'Unknown'})`)
+    context.projectRecent.forEach((item, index) => {
+      parts.push(`${index + 1}. ${item.content}`)
+    })
+    parts.push('')
   }
 
-  parts.push('</user-memory>');
+  // Global recent discussions
+  if (context.globalRecent && context.globalRecent.length > 0) {
+    parts.push('## 其他最近讨论')
+    context.globalRecent.forEach((item, index) => {
+      parts.push(`${index + 1}. ${item.content}`)
+    })
+    parts.push('')
+  }
 
-  return parts.join('\n');
+  // Greeting
+  if (context.greeting) {
+    parts.push('## 欢迎')
+    parts.push(context.greeting)
+    parts.push('')
+  }
+
+  parts.push('</user-memory>')
+
+  return parts.join('\n')
 }
 
 function main() {
-  debugLog('Start hook triggered');
+  debugLog('Start hook triggered')
 
   // 读取 stdin（Claude Code 会传入 hook 输入）
-  let hookInput = {};
+  let hookInput = {}
+  let cwd = process.cwd()
+
   try {
-    const raw = fs.readFileSync(0, 'utf8');
+    const raw = fs.readFileSync(0, 'utf8')
     if (raw.trim()) {
-      hookInput = JSON.parse(raw);
-      debugLog(`Hook input: ${JSON.stringify(hookInput).substring(0, 200)}`);
+      hookInput = JSON.parse(raw)
+      debugLog(`Hook input: ${JSON.stringify(hookInput).substring(0, 200)}`)
+      cwd = hookInput.cwd || cwd
     }
   } catch (err) {
-    debugLog(`Failed to parse hook input: ${err.message}`);
+    debugLog(`Failed to parse hook input: ${err.message}`)
   }
 
-  // 读取用户画像
-  const profile = readProfileSummary();
+  // Detect project name
+  const projectName = detectProjectName(cwd)
 
-  // 可选：读取知识库摘要（如果需要的话）
-  // const knowledge = readKnowledgeSummary();
-  const knowledge = null; // 暂时不包含知识库，避免上下文过长
+  // Run retrieve command
+  const res = runRetrieveCommand(cwd, projectName)
 
-  if (!profile && !knowledge) {
-    debugLog('No memory to recall, exiting');
-    process.exit(0);
+  if (!res.ok) {
+    debugLog(`Retrieve failed: ${res.error}`)
+    process.exit(0)
   }
 
-  // 输出到 stdout
-  const output = formatOutput(profile, knowledge);
-  debugLog(`Output length: ${output.length} chars`);
+  let context
+  try {
+    context = JSON.parse(res.output)
+  } catch (err) {
+    debugLog(`Failed to parse retrieve output: ${err.message}`)
+    process.exit(0)
+  }
 
-  // 输出 JSON 格式，包含要注入的内容
+  if (!context || (!context.userProfile && !context.greeting)) {
+    debugLog('No memory to recall')
+    process.exit(0)
+  }
+
+  // Format output
+  const output = formatOutput(context)
+  debugLog(`Output length: ${output.length} chars`)
+
+  // Output JSON format (for Claude Code hook)
   const result = {
     result: output,
-  };
+  }
 
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(result))
 }
 
-main();
+main()
