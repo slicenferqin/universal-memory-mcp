@@ -1,6 +1,6 @@
 {
   "name": "universal-memory-core",
-  "version": "0.6.0-beta.0",
+  "version": "0.7.0-beta.0",
   "description": "Universal memory system - Cross-project, cross-CLI, 100% local & private | 通用记忆系统 - 跨项目、跨CLI、100%本地私有",
   "type": "module",
   "main": "./dist/index.js",
