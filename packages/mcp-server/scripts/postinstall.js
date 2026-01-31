@@ -11,6 +11,7 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import { execSync } from 'node:child_process'
 
 const CLAUDE_DIR = path.join(os.homedir(), '.claude')
 const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json')
@@ -411,8 +412,6 @@ function configureStopHook() {
  */
 function installCronJob() {
   console.log('\n⏰ Installing daily memory consolidation cron job...')
-
-  const { execSync } = require('node:child_process')
 
   try {
     // Run universal-memory-cron install
