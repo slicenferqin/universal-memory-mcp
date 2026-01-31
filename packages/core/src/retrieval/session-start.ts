@@ -246,6 +246,18 @@ async function generateGreeting(
     return '你好！很高兴见到你，需要我帮你做什么吗？'
   }
 
+  // 检查记忆新鲜度（如果记忆超过3天，提示可能过时）
+  const now = new Date()
+  const memoryAgeHours = lastProjectFact
+    ? (now.getTime() - lastProjectFact.timestamp.getTime()) / (1000 * 60 * 60)
+    : Infinity
+
+  if (memoryAgeHours > 72) {
+    // 记忆超过3天，返回简单问候并提示记忆可能过时
+    const daysAgo = Math.floor(memoryAgeHours / 24)
+    return `你好！我们最近一次关于${currentProject || '这个项目'}的讨论是${daysAgo}天前。记忆可能有点过时了，要不要先聊聊最近的进展？`
+  }
+
   // 构建记忆摘要
   const profileSummary = extractProfileSummary(userProfile)
   const recentSummary = buildRecentSummary(lastProjectFact, lastGlobalFact, currentProject)
