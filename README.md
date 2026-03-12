@@ -16,6 +16,12 @@
 
 ---
 
+> [!IMPORTANT]
+> **项目主线已迁移。**  
+> `universal-memory-mcp` 现在保留为兼容层 / 维护线。新的 runtime-first 主线已经迁移到  
+> [slicenferqin/project-memory-runtime](https://github.com/slicenferqin/project-memory-runtime)  
+> 如果你关心 V2 架构、contract 文档、lifecycle-first 设计与后续实现，请优先查看新仓库。
+
 ## ✨ 核心特性
 
 - 🌍 **通用** - 基于 MCP 协议，支持所有 AI CLI 工具

@@ -16,6 +16,13 @@ English | [简体中文](./README.md)
 
 ---
 
+> [!IMPORTANT]
+> **The mainline has moved.**  
+> `universal-memory-mcp` is now better treated as a compatibility / maintenance line.  
+> The new runtime-first architecture now lives in  
+> [slicenferqin/project-memory-runtime](https://github.com/slicenferqin/project-memory-runtime).  
+> If you want the V2 architecture, contract set, lifecycle-first design, and future implementation work, start there.
+
 ## ✨ Core Features
 
 - 🌍 **Universal** - Works with all AI CLI tools via MCP protocol
