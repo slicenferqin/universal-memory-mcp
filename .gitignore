@@ -46,10 +46,14 @@ pids/
 tmp/
 temp/
 .tmp/
+.tmp_*/
 
 # Package manager locks (keep pnpm-lock.yaml only)
 package-lock.json
 yarn.lock
+
+# Local package artifacts
+*.tgz
 
 # Python
 __pycache__/
@@ -72,3 +76,6 @@ env/
 
 # Memory data (for development testing)
 .ai_memory/
+
+# Local workspace notes
+.trae/
