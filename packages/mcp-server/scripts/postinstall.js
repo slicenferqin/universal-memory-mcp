@@ -12,6 +12,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { execSync } from 'node:child_process'
+import { buildNodeCommand, resolveBundledScriptPath } from './postinstall-helpers.js'
 
 const CLAUDE_DIR = path.join(os.homedir(), '.claude')
 const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json')
@@ -286,7 +287,7 @@ function installStopHook() {
   }
 
   // Get source script path (in the same directory as this postinstall script)
-  const sourceScript = new URL('universal-memory-stop-hook.mjs', import.meta.url).pathname
+  const sourceScript = resolveBundledScriptPath('universal-memory-stop-hook.mjs')
 
   // Check if hook already exists
   if (fs.existsSync(hookScriptPath)) {
@@ -325,7 +326,7 @@ function installStartHook() {
   }
 
   // Get source script path (in the same directory as this postinstall script)
-  const sourceScript = new URL('universal-memory-start-hook.mjs', import.meta.url).pathname
+  const sourceScript = resolveBundledScriptPath('universal-memory-start-hook.mjs')
 
   // Check if source exists
   if (!fs.existsSync(sourceScript)) {
@@ -380,7 +381,7 @@ function configureStopHook() {
     'hooks',
     'universal-memory-stop-hook.mjs'
   )
-  const hookCommand = `node ${hookScriptPath}`
+  const hookCommand = buildNodeCommand(hookScriptPath)
   const alreadyConfigured = settings.hooks.Stop.some((entry) =>
     entry.hooks?.some(
       (hook) => hook.type === 'command' && hook.command.includes('universal-memory-stop-hook')
@@ -468,7 +469,7 @@ function configureStartHook() {
     'hooks',
     'universal-memory-start-hook.mjs'
   )
-  const hookCommand = `node ${hookScriptPath}`
+  const hookCommand = buildNodeCommand(hookScriptPath)
   const alreadyConfigured = settings.hooks.SessionStart.some((entry) =>
     entry.hooks?.some(
       (hook) => hook.type === 'command' && hook.command.includes('universal-memory-start-hook')
