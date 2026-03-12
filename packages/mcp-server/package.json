@@ -1,6 +1,6 @@
 {
   "name": "universal-memory-mcp",
-  "version": "0.7.0-beta.1",
+  "version": "0.7.0-beta.2",
   "description": "Super personal assistant for any AI CLI - Universal, cross-project, 100% local | 超级个人助理 - 通用、跨项目、100%本地",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "universal-memory-core": "^0.6.0-beta.0"
+    "universal-memory-core": "^0.7.0-beta.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

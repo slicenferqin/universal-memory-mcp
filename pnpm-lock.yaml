@@ -64,8 +64,8 @@ importers:
         specifier: ^1.0.0
         version: 1.25.3(hono@4.11.6)(zod@4.3.6)
       universal-memory-core:
-        specifier: ^0.6.0-beta.0
-        version: 0.6.0-beta.0
+        specifier: ^0.7.0-beta.1
+        version: 0.7.0-beta.1
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -1536,8 +1536,8 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
-  universal-memory-core@0.6.0-beta.0:
-    resolution: {integrity: sha512-53ZGHYDTuLddqexBxqyuwAdC6rA7SlB/z8uCnnunHb6S47QmR8mH22UPix4Lborv7AvNtvorbu/ewzFl4M8pcg==}
+  universal-memory-core@0.7.0-beta.1:
+    resolution: {integrity: sha512-ccc0y6/O63cM3y601m1hc/hev5S0oRg86sW2Bxtdv1TSQ/YjbzGFpJ+U5zOQljJT2aQct4ocOBboZloJN3dE6g==}
 
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
@@ -3084,10 +3084,11 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  universal-memory-core@0.6.0-beta.0:
+  universal-memory-core@0.7.0-beta.1:
     dependencies:
       better-sqlite3: 11.10.0
       chokidar: 5.0.0
+      p-retry: 7.1.1
       sqlite-vec: 0.1.7-alpha.2
 
   unpipe@1.0.0: {}

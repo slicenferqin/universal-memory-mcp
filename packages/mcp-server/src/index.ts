@@ -25,7 +25,7 @@ const memoryManager = createMemoryManager();
 const server = new Server(
   {
     name: 'universal-memory-mcp',
-    version: '0.1.0',
+    version: '0.7.0-beta.2',
   },
   {
     capabilities: {
